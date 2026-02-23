@@ -6,7 +6,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d1b2a">
 <script>
-// Apps Script strips <meta> tags — re-inject viewport immediately
 (function(){
   var m=document.querySelector('meta[name=viewport]');
   if(!m){m=document.createElement('meta');m.name='viewport';document.head.appendChild(m);}
@@ -56,13 +55,14 @@
   .toast.warn{background:var(--warning);color:#000;}
   .toast.top{background:var(--top-color);color:#000;}
   .toast.info{background:var(--accent2);color:#000;}
+  .toast.error{background:var(--danger);color:#fff;}
 
   /* CAT BADGES */
   .cat-badge{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;}
   .cat-u13{background:#ff6b9d;color:#000;}.cat-u15{background:#c77dff;color:#fff;}
   .cat-u17{background:#4ecdc4;color:#000;}.cat-u21{background:#ff6b35;color:#fff;}
 
-  /* ── LOGIN SCREEN ── */
+  /* ── LOGIN ── */
   #screen-login{justify-content:flex-start;align-items:stretch;padding:0;}
   .login-hero{background:linear-gradient(160deg,var(--surface) 0%,var(--bg) 100%);padding:40px 24px 24px;text-align:center;border-bottom:2px solid var(--accent);}
   .login-hero h1{font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;color:var(--accent);letter-spacing:2px;line-height:1;}
@@ -77,36 +77,32 @@
   .judge-btn-id{font-size:12px;color:var(--text-muted);}
   .judge-assigned-chip{margin-left:auto;font-size:11px;color:var(--accent2);background:rgba(144,224,239,0.1);border:1px solid var(--accent2);padding:3px 8px;border-radius:10px;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;font-weight:700;}
 
-  /* ── SETUP SCREEN ── */
+  /* ── SETUP ── */
   #screen-setup{align-items:stretch;}
   .setup-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px;}
   .setup-section-label{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
-  .category-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .cat-select-btn{background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:14px 10px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;cursor:pointer;text-align:center;transition:all 0.15s;}
-  .cat-select-btn.selected{border-color:var(--accent);background:rgba(0,180,216,0.1);color:var(--accent);}
+  .setup-hint{font-size:12px;color:var(--text-muted);margin-bottom:10px;}
   .climb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
   .climb-select-btn{background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:14px 6px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;cursor:pointer;text-align:center;transition:all 0.15s;}
-  .climb-select-btn.selected{border-color:var(--accent);background:rgba(0,180,216,0.1);color:var(--accent);}
+  .climb-select-btn.selected{border-color:var(--accent);background:rgba(0,180,216,0.15);color:var(--accent);}
   .climb-select-btn .q-count{font-size:10px;font-family:'Barlow',sans-serif;font-weight:400;color:var(--text-muted);display:block;margin-top:2px;}
+  .climb-select-btn.selected .q-count{color:var(--accent2);}
+  .selected-summary{background:rgba(0,180,216,0.08);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--accent2);text-align:center;min-height:42px;}
   .setup-confirm-btn{background:var(--accent);color:#000;border:none;padding:20px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;cursor:pointer;width:100%;transition:transform 0.1s;}
   .setup-confirm-btn:disabled{opacity:0.3;cursor:not-allowed;}
-  .current-assignment-bar{background:rgba(0,180,216,0.1);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--accent2);text-align:center;}
+  .setup-confirm-btn:not(:disabled):active{transform:scale(0.97);}
 
   /* ── JUDGE HOME ── */
   #screen-judge-home{align-items:stretch;}
-  .judge-home-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;}
-  .judge-assignment-card{background:rgba(0,180,216,0.08);border:2px solid var(--accent);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;}
-  .assignment-detail{font-family:'Barlow Condensed',sans-serif;}
-  .assignment-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
-  .assignment-value{font-size:22px;font-weight:800;color:var(--accent);line-height:1.1;}
-  .judge-home-actions{flex:1;display:flex;flex-direction:column;gap:12px;padding:16px;}
-  .action-card{background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:20px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:border-color 0.2s;}
-  .action-card:active{border-color:var(--accent);}
-  .action-icon{font-size:36px;flex-shrink:0;}
-  .action-text-block .action-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;letter-spacing:0.5px;}
-  .action-text-block .action-sub{font-size:13px;color:var(--text-muted);margin-top:2px;}
-  .action-badge{margin-left:auto;background:var(--danger);color:white;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;padding:6px 12px;border-radius:10px;flex-shrink:0;}
-  .action-badge.empty{background:var(--surface2);color:var(--text-muted);}
+  .judge-home-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+  .home-section-label{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  .home-climb-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+  .home-climb-number{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;color:var(--accent);width:44px;text-align:center;flex-shrink:0;}
+  .home-climb-info{flex:1;}
+  .home-climb-cats{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  .home-climb-badge{background:var(--danger);color:white;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;padding:6px 14px;border-radius:10px;flex-shrink:0;}
+  .home-climb-badge.empty{background:var(--surface2);color:var(--text-muted);}
+  .home-actions{display:flex;flex-direction:column;gap:10px;padding:0 16px 16px;}
 
   /* SCAN CAMERA */
   .camera-wrap{position:relative;width:100%;max-width:360px;margin:0 auto;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:1;}
@@ -121,46 +117,45 @@
   @keyframes scanline{0%{top:12px}100%{top:calc(100% - 14px)}}
   .camera-status{font-size:13px;color:var(--text-muted);text-align:center;padding:8px 16px;}
   .camera-error{background:rgba(231,76,60,0.1);border:1px solid var(--danger);border-radius:10px;padding:12px;font-size:13px;color:var(--danger);text-align:center;margin:0 16px;display:none;}
-  .camera-btn{background:var(--accent);color:#000;border:none;padding:14px 28px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;cursor:pointer;margin:0 auto;display:block;}
   .scan-area{width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 16px 0;}
   .scan-demo-section{width:100%;padding:0 16px 24px;overflow-y:auto;flex:1;}
   .scan-demo-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;text-align:center;margin-bottom:10px;}
   .demo-comp-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:10px;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:8px;gap:8px;}
   .in-queue-chip{font-size:11px;color:var(--accent2);background:rgba(144,224,239,0.1);padding:2px 7px;border-radius:10px;white-space:nowrap;}
-  .already-here-chip{font-size:11px;color:var(--success);background:rgba(46,204,113,0.1);padding:2px 7px;border-radius:10px;white-space:nowrap;}
+  .scan-error-banner{background:rgba(231,76,60,0.12);border:1px solid var(--danger);border-radius:12px;padding:16px;margin:0 16px;display:none;text-align:center;}
+  .scan-error-banner .err-icon{font-size:32px;margin-bottom:6px;}
+  .scan-error-banner .err-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--danger);}
+  .scan-error-banner .err-detail{font-size:13px;color:var(--text-muted);margin-top:4px;}
 
-  /* ── CONFIRM ADD TO QUEUE ── */
-  #screen-judge-confirm{align-items:stretch;}
-  .confirm-body{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px;}
-  .competitor-card{background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:20px;text-align:center;}
-  .competitor-card .reg-number{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:800;color:var(--accent);line-height:1;}
-  .competitor-card .comp-name{font-size:22px;font-weight:600;margin-top:6px;}
-  .competitor-card .comp-cat{margin-top:10px;display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;padding:5px 14px;border-radius:20px;}
-  .queue-target-card{background:rgba(0,180,216,0.08);border:2px solid var(--accent);border-radius:12px;padding:14px 16px;text-align:center;}
-  .queue-target-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
-  .queue-target-value{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--accent);margin-top:2px;}
-  .queue-target-pos{font-size:13px;color:var(--text-muted);margin-top:4px;}
-  .already-queued-warning{background:rgba(243,156,18,0.1);border:1px solid var(--warning);border-radius:10px;padding:12px;font-size:13px;color:var(--warning);text-align:center;}
-
-  /* ── WRONG CATEGORY ERROR ── */
-  #screen-judge-wrong-cat{align-items:stretch;justify-content:flex-start;}
-  .wrong-cat-body{flex:1;padding:24px;display:flex;flex-direction:column;align-items:center;gap:20px;}
-  .wrong-cat-icon{font-size:72px;margin-top:16px;}
-  .wrong-cat-title{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;color:var(--danger);letter-spacing:1px;text-align:center;}
-  .wrong-cat-message{font-size:15px;color:var(--text-muted);text-align:center;line-height:1.6;max-width:300px;}
-  .wrong-cat-comp-card{background:var(--surface);border:2px solid var(--danger);border-radius:14px;padding:20px;width:100%;text-align:center;}
-  .wrong-cat-comp-card .comp-reg{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;color:var(--danger);line-height:1;}
-  .wrong-cat-comp-card .comp-name{font-size:20px;font-weight:600;margin-top:6px;}
-  .wrong-cat-cats{display:flex;flex-direction:column;gap:8px;width:100%;}
-  .wrong-cat-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:10px;padding:12px 16px;}
-  .wrong-cat-row-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
-  .wrong-cat-row-value{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;}
-  .wrong-cat-row-value.danger{color:var(--danger);}
-  .wrong-cat-row-value.good{color:var(--accent);}
-  .wrong-cat-actions{display:flex;flex-direction:column;gap:10px;width:100%;margin-top:auto;}
+  /* ── ACTION SCREEN (post-scan) ── */
+  #screen-judge-action{align-items:stretch;}
+  .action-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;}
+  .scanned-comp-card{background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:20px;text-align:center;}
+  .scanned-comp-card .reg-number{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:800;color:var(--accent);line-height:1;}
+  .scanned-comp-card .comp-name{font-size:22px;font-weight:600;margin-top:6px;}
+  .scanned-comp-card .comp-cat{margin-top:10px;display:inline-block;}
+  .action-climb-row{background:var(--surface);border:2px solid var(--border);border-radius:12px;overflow:hidden;}
+  .action-climb-row.invalid{border-color:var(--surface2);opacity:0.45;}
+  .action-climb-header{display:flex;align-items:center;gap:12px;padding:14px 16px;}
+  .action-climb-num{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:var(--accent);width:38px;text-align:center;flex-shrink:0;}
+  .action-climb-row.invalid .action-climb-num{color:var(--text-muted);}
+  .action-climb-meta{flex:1;}
+  .action-climb-cats{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  .action-climb-tag{font-size:11px;color:var(--danger);font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.5px;}
+  .action-climb-btns{display:flex;gap:8px;padding:0 12px 12px;}
+  .action-q-btn{flex:1;background:var(--accent);color:#000;border:none;padding:13px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;cursor:pointer;}
+  .action-q-btn:active{opacity:0.85;}
+  .action-score-btn{flex:1;background:var(--success);color:white;border:none;padding:13px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;cursor:pointer;}
+  .action-score-btn:active{opacity:0.85;}
 
   /* ── QUEUE SCREEN ── */
   #screen-judge-queue{align-items:stretch;}
+  .queue-climb-tabs{display:flex;overflow-x:auto;background:var(--surface);border-bottom:2px solid var(--border);scrollbar-width:none;}
+  .queue-climb-tabs::-webkit-scrollbar{display:none;}
+  .queue-climb-tab{flex-shrink:0;padding:12px 16px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--text-muted);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;position:relative;}
+  .queue-climb-tab.active{color:var(--text);border-bottom-color:var(--accent);}
+  .queue-climb-tab .tab-badge{display:inline-block;background:var(--danger);color:white;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:5px;font-weight:700;}
+  .queue-climb-tab .tab-badge.empty{background:var(--border);color:var(--text-muted);}
   .queue-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
   .queue-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-muted);padding:40px;text-align:center;}
   .queue-empty-icon{font-size:48px;opacity:0.3;}
@@ -182,7 +177,7 @@
   .queue-score-btn:active{opacity:0.85;}
   .queue-done-btn{flex:1;background:var(--surface2);border:2px solid var(--border);color:var(--text-muted);padding:14px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:600;cursor:pointer;}
 
-  /* ── SCORING SCREEN ── */
+  /* ── SCORING ── */
   #screen-judge-scoring{align-items:stretch;}
   .scoring-header-info{background:var(--surface);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
   .scoring-competitor-name{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;}
@@ -200,42 +195,45 @@
   .best-score-badge{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--success);}
   .best-score-badge.topped{color:var(--top-color);}
   .attempts-pips{display:flex;gap:4px;}
-  .pip{width:8px;height:8px;border-radius:50%;background:var(--border);}
-  .pip.used{background:var(--accent2);}.pip.best{background:var(--success);}.pip.top{background:var(--top-color);}
-  .climb-expand{display:none;padding:0 12px 16px;}
+  .pip{width:10px;height:10px;border-radius:50%;background:var(--border);}
+  .pip.used{background:var(--text-muted);}
+  .pip.best{background:var(--success);}
+  .pip.top{background:var(--top-color);}
+  .climb-expand{display:none;padding:0 14px 14px;border-top:1px solid var(--border);}
   .climb-card.is-active .climb-expand{display:block;}
-  .attempts-section-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
-  .attempts-table{width:100%;border-collapse:collapse;margin-bottom:16px;}
-  .attempts-table th{font-size:11px;color:var(--text-muted);text-transform:uppercase;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);}
-  .attempts-table td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
-  .attempt-row.is-best td{background:rgba(46,204,113,0.07);}
-  .attempt-row.is-topped-row td{background:rgba(255,215,0,0.07);}
-  .attempt-num-cell{font-family:'Barlow Condensed',sans-serif;font-size:15px;color:var(--text-muted);width:36px;}
-  .attempt-score-cell{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;}
-  .top-label{font-size:11px;color:var(--top-color);font-family:'Barlow',sans-serif;font-weight:600;display:block;line-height:1;}
-  .attempt-pm-cell{text-align:center;}
-  .pm-toggle{background:var(--surface2);border:2px solid var(--border);color:var(--text-muted);width:50px;height:44px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;}
-  .pm-toggle.active{background:var(--pm-color);border-color:var(--pm-color);color:white;}
-  .pm-toggle:disabled{opacity:0.25;cursor:not-allowed;}
-  .attempt-total-cell{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;text-align:right;}
+  .attempts-section-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;}
+  .attempts-table{width:100%;border-collapse:collapse;font-size:14px;}
+  .attempts-table th{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px 6px;text-align:left;font-weight:600;}
+  .attempt-row td{padding:8px 6px;border-top:1px solid var(--border);}
+  .attempt-row.is-best td{background:rgba(46,204,113,0.06);}
+  .attempt-row.is-topped-row td{background:rgba(255,215,0,0.06);}
+  .attempt-num-cell{color:var(--text-muted);font-size:12px;white-space:nowrap;}
+  .attempt-score-cell{font-weight:600;}
+  .top-label{font-size:10px;color:var(--top-color);margin-left:4px;font-family:'Barlow Condensed',sans-serif;font-weight:700;}
+  .attempt-pm-cell{}
+  .attempt-total-cell{text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800;}
   .attempt-total-cell.is-best-val{color:var(--success);}
   .attempt-total-cell.is-top-val{color:var(--top-color);}
-  .bonus-chip{font-size:11px;border-radius:4px;padding:1px 5px;font-weight:600;display:block;text-align:right;}
+  .bonus-chip{font-size:10px;padding:2px 5px;border-radius:6px;margin-left:4px;font-family:'Barlow Condensed',sans-serif;font-weight:700;vertical-align:middle;}
   .bonus-chip.top-bonus{background:rgba(255,215,0,0.15);color:var(--top-color);}
   .bonus-chip.pm-bonus{background:rgba(167,139,250,0.15);color:var(--pm-color);}
-  .attempt-actions-cell{width:60px;text-align:right;}
-  .edit-attempt-btn,.del-attempt-btn{background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:4px;}
-  .score-input-section{margin-top:4px;}
-  .score-input-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
+  .attempt-actions-cell{text-align:right;white-space:nowrap;}
+  .edit-attempt-btn,.del-attempt-btn{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:6px;font-size:14px;}
+  .edit-attempt-btn{color:var(--text-muted);}
+  .del-attempt-btn{color:var(--danger);}
+  .pm-toggle{background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);padding:4px 8px;border-radius:6px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;cursor:pointer;}
+  .pm-toggle.active{background:rgba(167,139,250,0.15);border-color:var(--pm-color);color:var(--pm-color);}
+  .score-input-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+  .score-input-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
   .score-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
-  .score-btn{flex:1;min-width:52px;background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:16px 6px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;cursor:pointer;transition:transform 0.1s;}
-  .score-btn:active{transform:scale(0.93);background:var(--accent);border-color:var(--accent);color:#000;}
-  .top-btn{width:100%;background:rgba(255,215,0,0.1);border:2px solid var(--top-color);color:var(--top-color);padding:18px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;cursor:pointer;transition:transform 0.1s;}
-  .top-btn:active{transform:scale(0.97);}
-  .max-attempts-msg{color:var(--warning);font-size:14px;text-align:center;padding:10px;}
-  .topped-msg{color:var(--top-color);font-size:18px;font-family:'Barlow Condensed',sans-serif;font-weight:700;text-align:center;padding:10px;}
-  .done-scoring-bar{padding:12px;background:var(--surface);border-top:1px solid var(--border);}
-  .done-scoring-btn{width:100%;background:var(--accent);border:none;color:#000;padding:16px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;cursor:pointer;}
+  .score-btn{flex:1;min-width:52px;background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:14px 6px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;cursor:pointer;transition:all 0.1s;}
+  .score-btn:active{border-color:var(--accent);background:rgba(0,180,216,0.1);}
+  .top-btn{width:100%;background:rgba(255,215,0,0.08);border:2px solid rgba(255,215,0,0.3);color:var(--top-color);padding:16px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;cursor:pointer;}
+  .top-btn:active{background:rgba(255,215,0,0.15);}
+  .topped-msg{background:rgba(255,215,0,0.08);border:1px solid var(--top-color);border-radius:10px;padding:16px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--top-color);margin-top:14px;}
+  .max-attempts-msg{background:rgba(231,76,60,0.08);border:1px solid var(--danger);border-radius:10px;padding:14px;text-align:center;font-size:14px;color:var(--danger);margin-top:14px;}
+  .done-scoring-bar{padding:12px 16px env(safe-area-inset-bottom,12px);background:var(--surface);border-top:2px solid var(--border);}
+  .done-scoring-btn{width:100%;background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:16px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;cursor:pointer;}
 
   /* EDIT MODAL */
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:flex-end;justify-content:center;}
@@ -303,20 +301,17 @@
 <div class="screen" id="screen-setup">
   <div class="app-header">
     <button class="back-btn" onclick="showScreen('login')">← BACK</button>
-    <div class="logo">SETUP</div>
+    <div class="logo">MY CLIMBS</div>
     <div class="judge-chip" id="setup-judge-chip"></div>
   </div>
   <div class="setup-body">
-    <div id="current-assignment-bar" style="display:none;" class="current-assignment-bar"></div>
     <div>
-      <div class="setup-section-label">Select Age Category</div>
-      <div class="category-grid" id="category-grid"></div>
-    </div>
-    <div>
-      <div class="setup-section-label">Select Climb</div>
+      <div class="setup-section-label">Select your climbs</div>
+      <div class="setup-hint">Tap to select all the climbs you are responsible for judging. You can select up to 3.</div>
       <div class="climb-grid" id="setup-climb-grid"></div>
     </div>
-    <button class="setup-confirm-btn" id="setup-confirm-btn" onclick="confirmSetup()" disabled>START JUDGING</button>
+    <div class="selected-summary" id="setup-selected-summary">No climbs selected</div>
+    <button class="setup-confirm-btn" id="setup-confirm-btn" onclick="confirmSetup()" disabled>START JUDGING →</button>
     <button class="btn-cancel" onclick="showScreen('login')">Cancel</button>
   </div>
 </div>
@@ -324,33 +319,16 @@
 <!-- ══ JUDGE HOME ══ -->
 <div class="screen" id="screen-judge-home">
   <div class="app-header">
-    <div class="logo">JUDGE</div>
+    <div class="logo">⛰ JUDGE</div>
     <div class="judge-chip" id="home-judge-chip"></div>
   </div>
-  <div class="judge-home-header">
-    <div class="judge-assignment-card">
-      <div class="assignment-detail">
-        <div class="assignment-label">ASSIGNED TO</div>
-        <div class="assignment-value" id="home-assignment-value"></div>
-      </div>
-      <button class="btn-secondary" style="width:auto;padding:10px 14px;font-size:15px;" onclick="showScreen('setup')">CHANGE</button>
-    </div>
-  </div>
-  <div class="judge-home-actions">
-    <div class="action-card" onclick="showScreen('judge-scan')">
-      <div class="action-icon">📷</div>
-      <div class="action-text-block">
-        <div class="action-title">SCAN TO QUEUE</div>
-        <div class="action-sub">Add a competitor to your climb queue</div>
-      </div>
-    </div>
-    <div class="action-card" onclick="showScreen('judge-queue')">
-      <div class="action-icon">🕐</div>
-      <div class="action-text-block">
-        <div class="action-title">VIEW QUEUE</div>
-        <div class="action-sub" id="home-queue-sub">See who's waiting to climb</div>
-      </div>
-      <div class="action-badge" id="home-queue-badge">0</div>
+  <div class="judge-home-body">
+    <div class="home-section-label">Your assigned climbs</div>
+    <div id="home-climbs-list"></div>
+    <div class="home-actions">
+      <button class="btn-primary" onclick="showScreen('judge-scan')">📷 SCAN COMPETITOR</button>
+      <button class="btn-secondary" onclick="showScreen('judge-queue')">🕐 VIEW QUEUE</button>
+      <button class="btn-cancel" onclick="showScreen('setup')">⚙ Change Climbs</button>
     </div>
   </div>
   <div class="bottom-nav">
@@ -367,11 +345,11 @@
 <div class="screen" id="screen-judge-scan">
   <div class="app-header">
     <button class="back-btn" onclick="showScreen('judge-home')">← HOME</button>
-    <div class="logo">SCAN TO QUEUE</div>
+    <div class="logo">SCAN</div>
     <div class="judge-chip" id="scan-judge-chip"></div>
   </div>
   <div class="scan-area">
-    <div class="camera-wrap" id="judge-camera-wrap">
+    <div class="camera-wrap">
       <video id="judge-qr-video" playsinline autoplay muted></video>
       <canvas id="judge-qr-canvas"></canvas>
       <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
@@ -379,70 +357,35 @@
       <div class="scan-line"></div>
     </div>
     <div class="camera-status" id="judge-camera-status">Starting camera…</div>
-    <div class="camera-error" id="judge-camera-error">
-      Camera unavailable. Use the list below or check browser permissions.
-    </div>
+    <div class="camera-error" id="judge-camera-error">Camera unavailable. Use the list below.</div>
+  </div>
+  <!-- Error banner shown inline when wrong category scanned -->
+  <div class="scan-error-banner" id="scan-error-banner">
+    <div class="err-icon">⛔</div>
+    <div class="err-title" id="scan-err-title">WRONG CATEGORY</div>
+    <div class="err-detail" id="scan-err-detail"></div>
   </div>
   <div class="scan-demo-section">
-    <div class="scan-demo-label">— Demo: tap a competitor —</div>
+    <div class="scan-demo-label">— or tap a competitor —</div>
     <div id="scan-demo-list"></div>
   </div>
 </div>
 
-<!-- ══ CONFIRM ADD TO QUEUE ══ -->
-<div class="screen" id="screen-judge-confirm">
+<!-- ══ ACTION (post-scan: choose climb + queue/score) ══ -->
+<div class="screen" id="screen-judge-action">
   <div class="app-header">
     <button class="back-btn" onclick="showScreen('judge-scan')">← RESCAN</button>
-    <div class="logo">ADD TO QUEUE</div>
+    <div class="logo">ACTION</div>
+    <div class="judge-chip" id="action-judge-chip"></div>
   </div>
-  <div class="confirm-body">
-    <div class="competitor-card">
-      <div class="reg-number" id="jc-reg"></div>
-      <div class="comp-name" id="jc-name"></div>
-      <div class="comp-cat" id="jc-cat"></div>
+  <div class="action-body">
+    <div class="scanned-comp-card">
+      <div class="reg-number" id="action-reg"></div>
+      <div class="comp-name" id="action-name"></div>
+      <div class="comp-cat" id="action-cat-badge"></div>
     </div>
-    <div class="queue-target-card">
-      <div class="queue-target-label">ADDING TO QUEUE FOR</div>
-      <div class="queue-target-value" id="jc-queue-target"></div>
-      <div class="queue-target-pos" id="jc-queue-pos"></div>
-    </div>
-    <div class="already-queued-warning" id="jc-warning" style="display:none;"></div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:auto;">
-      <button class="btn-success" onclick="confirmAddToQueue()">✓ ADD TO QUEUE</button>
-      <button class="btn-cancel" onclick="showScreen('judge-scan')">✗ Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ WRONG CATEGORY ERROR ══ -->
-<div class="screen" id="screen-judge-wrong-cat">
-  <div class="app-header">
-    <button class="back-btn" onclick="showScreen('judge-scan')">← RESCAN</button>
-    <div class="logo" style="color:var(--danger);">WRONG CATEGORY</div>
-  </div>
-  <div class="wrong-cat-body">
-    <div class="wrong-cat-icon">⛔</div>
-    <div class="wrong-cat-title">WRONG CATEGORY</div>
-    <div class="wrong-cat-message">This competitor is not in your assigned category. You cannot add them to your queue.</div>
-    <div class="wrong-cat-comp-card">
-      <div class="comp-reg" id="wc-reg"></div>
-      <div class="comp-name" id="wc-name"></div>
-      <div style="margin-top:10px;" id="wc-comp-cat-badge"></div>
-    </div>
-    <div class="wrong-cat-cats">
-      <div class="wrong-cat-row">
-        <span class="wrong-cat-row-label">Competitor's Category</span>
-        <span class="wrong-cat-row-value danger" id="wc-comp-cat"></span>
-      </div>
-      <div class="wrong-cat-row">
-        <span class="wrong-cat-row-label">Your Assigned Category</span>
-        <span class="wrong-cat-row-value good" id="wc-judge-cat"></span>
-      </div>
-    </div>
-    <div class="wrong-cat-actions">
-      <button class="btn-primary" onclick="showScreen('judge-scan')" style="background:var(--accent);color:#000;">← SCAN AGAIN</button>
-      <button class="btn-cancel" onclick="showScreen('judge-home')">Back to Home</button>
-    </div>
+    <div id="action-climbs-list"></div>
+    <button class="btn-cancel" style="margin-top:auto;" onclick="showScreen('judge-scan')">✗ Cancel</button>
   </div>
 </div>
 
@@ -453,6 +396,7 @@
     <div class="logo" id="queue-screen-title">QUEUE</div>
     <div class="judge-chip" id="queue-judge-chip"></div>
   </div>
+  <div class="queue-climb-tabs" id="queue-climb-tabs"></div>
   <div class="queue-body" id="judge-queue-body"></div>
   <div class="bottom-nav">
     <button class="nav-btn" onclick="showScreen('judge-scan')"><span class="nav-icon">📷</span>SCAN</button>
@@ -486,8 +430,6 @@
 
 <script>
 
-
-
 // ═══════════════════════════════════════════════════════════════
 // CONFIG — your Apps Script web app URL
 // ═══════════════════════════════════════════════════════════════
@@ -506,13 +448,11 @@ let allScores={}, queues={};
 const POLL_INTERVAL_MS=8000;
 let pollTimer=null, _cbIdx=0;
 
-// Returns the ordered wall climb IDs for a competitor's category
 function catClimbs(reg){
   const comp=COMPETITORS.find(c=>c.reg===reg);
   if(!comp) return [];
   return CATEGORY_CLIMBS[comp.category]||[];
 }
-// Returns allowed scores for a given wall climb ID
 function climbAllowed(wallClimbId){
   return (CLIMB_SCORES[wallClimbId]||[TOP_SCORE]).filter(s=>s!==TOP_SCORE);
 }
@@ -546,9 +486,8 @@ async function initApp(onReady){
     ALL_WALL_CLIMBS=cfg.allWallClimbs;
     TOP_SCORE=cfg.topScore; MAX_ATTEMPTS=cfg.maxAttempts;
     TOP_BONUS=cfg.topBonus||Array.from({length:MAX_ATTEMPTS},(_,i)=>Math.max(0,MAX_ATTEMPTS-1-i));
-    if(cfg.judges) JUDGES=cfg.judges;
+    JUDGES=cfg.judges;
     COMPETITORS=cfg.competitors;
-    // Initialise score/queue storage for every wall climb used
     COMPETITORS.forEach(c=>{
       allScores[c.reg]={};
       ALL_WALL_CLIMBS.forEach(ci=>allScores[c.reg][ci]=[]);
@@ -584,32 +523,31 @@ function startPolling(){
   pollTimer=setInterval(async()=>{await refreshAll();if(typeof onPollRefresh==='function')onPollRefresh();},POLL_INTERVAL_MS);
 }
 
-// wallClimbId is the actual climb number on the wall (1-based)
 function apiSubmitScore(judgeId,compReg,wallClimbId,attemptIdx,score,positiveMovement,isTop,onDone){
   const attempts=allScores[compReg][wallClimbId];
   const attempt={score,positiveMovement,isTop};
   if(attemptIdx<attempts.length)attempts[attemptIdx]=attempt;else attempts.push(attempt);
   apiPostNC({action:'submitScore',judgeId,compReg,climbIdx:wallClimbId,attemptIdx,score,positiveMovement,isTop});
-  if(onDone) onDone({success:true});
+  if(onDone)onDone({success:true});
 }
 function apiDeleteAttempt(compReg,wallClimbId,attemptIdx,onDone){
   allScores[compReg][wallClimbId].splice(attemptIdx,1);
   apiPostNC({action:'deleteAttempt',compReg,climbIdx:wallClimbId,attemptIdx});
-  if(onDone) onDone({success:true});
+  if(onDone)onDone({success:true});
 }
 function apiJoinQueue(compReg,wallClimbId,onDone){
   ALL_WALL_CLIMBS.forEach(ci=>queues[ci]=queues[ci].filter(e=>e.reg!==compReg));
   queues[wallClimbId].push({reg:compReg,joinedAt:Date.now()});
   apiPostNC({action:'joinQueue',compReg,climbIdx:wallClimbId});
-  if(onDone) onDone({success:true});
+  if(onDone)onDone({success:true});
 }
 function apiLeaveQueue(compReg,wallClimbId,status,onDone){
   queues[wallClimbId]=queues[wallClimbId].filter(e=>e.reg!==compReg);
   apiPostNC({action:'leaveQueue',compReg,climbIdx:wallClimbId,status});
-  if(onDone) onDone({success:true});
+  if(onDone)onDone({success:true});
 }
 
-// Shared helpers
+// ── HELPERS ──────────────────────────────────────────────────────
 function attemptTotal(a,ai){if(a.isTop)return TOP_SCORE+(TOP_BONUS[ai]||0);return a.score+(a.positiveMovement?1:0);}
 function climbBest(reg,ci){const arr=allScores[reg]&&allScores[reg][ci]?allScores[reg][ci]:[];if(!arr.length)return null;let best={idx:0,total:attemptTotal(arr[0],0)};for(let i=1;i<arr.length;i++){const t=attemptTotal(arr[i],i);if(t>best.total)best={idx:i,total:t};}return best;}
 function climbTopped(reg,ci){return(allScores[reg]&&allScores[reg][ci]||[]).some(a=>a.isTop);}
@@ -620,230 +558,347 @@ function catClass(cat){for(let k in CAT_KEY){if(cat.includes(k))return CAT_KEY[k
 function fmtWait(t){const m=Math.floor((Date.now()-t)/60000);if(m<1)return 'just now';return m+(m===1?' min':' mins');}
 function initials(name){return name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();}
 
+// Returns which of the judge's assigned climbs this competitor is valid for
+function validClimbsForComp(reg){
+  const myClimbs=getMyClimbs();
+  const compCatClimbs=new Set(catClimbs(reg));
+  return myClimbs.filter(ci=>compCatClimbs.has(ci));
+}
+
 function showFatalError(msg){document.body.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;background:#0d1b2a;color:#f0f4f8;text-align:center;gap:16px;"><div style="font-size:48px">⚠️</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:#e74c3c;">CONNECTION ERROR</div><div style="font-size:14px;color:#7a9ab5;max-width:320px;">${msg}</div><button onclick="location.reload()" style="background:#00b4d8;color:#000;border:none;padding:14px 28px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;cursor:pointer;margin-top:8px;">RETRY</button></div>`;}
 function showLoadingScreen(){document.body.insertAdjacentHTML('afterbegin',`<div id="loading-overlay" style="position:fixed;inset:0;background:#0d1b2a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9999;"><div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;color:#00b4d8;letter-spacing:2px;">⛰ CLIMBSCORE</div><div style="color:#7a9ab5;font-size:13px;letter-spacing:2px;text-transform:uppercase;">Loading competition data...</div><div style="width:200px;height:4px;background:#1a2e42;border-radius:2px;margin-top:8px;overflow:hidden;"><div style="height:100%;background:#00b4d8;border-radius:2px;animation:csload 1.5s ease infinite;"></div></div></div><style>@keyframes csload{0%{width:0%}50%{width:70%}100%{width:100%}}</style>`);}
 function hideLoadingScreen(){const el=document.getElementById('loading-overlay');if(el)el.remove();}
 
-// ── STATE ──
+// ── STATE ──────────────────────────────────────────────────────
 let currentJudge=null;
-let selectedCategory=null;
-let selectedClimbIdx=null;
+let setupSelectedClimbs=new Set(); // wall climb IDs selected in setup
 let currentScoringComp=null;
+let scoringFromClimb=null;         // wall climb ID we're scoring on
 let activeClimbExpanded=null;
+let activeQueueClimb=null;         // which tab is active in queue screen
 let editState={};
 
-// ── SCREENS ──
+// Returns the judge's currently assigned climbs (sorted array)
+function getMyClimbs(){return currentJudge?([...(currentJudge._climbs||[])].sort((a,b)=>a-b)):[];}
+
+// ── SCREENS ──────────────────────────────────────────────────────
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
-  // Stop camera whenever we leave the scan screen
   if(name!=='judge-scan') stopCamera();
-  if(name==='login')renderJudgeList();
-  if(name==='setup')renderSetup();
-  if(name==='judge-home')renderJudgeHome();
-  if(name==='judge-scan'){renderScanList();startCamera();}
-  if(name==='judge-queue')renderJudgeQueue();
-  if(name==='judge-scoring')renderJudgeScoring();
+  if(name==='login')         renderJudgeList();
+  if(name==='setup')         renderSetup();
+  if(name==='judge-home')    renderJudgeHome();
+  if(name==='judge-scan')    {hideScanError();renderScanList();startCamera();}
+  if(name==='judge-action')  renderActionScreen();
+  if(name==='judge-queue')   renderJudgeQueue();
+  if(name==='judge-scoring') renderJudgeScoring();
 }
 
-// ── LOGIN ──
+// ── LOGIN ──────────────────────────────────────────────────────
 function renderJudgeList(){
-  document.getElementById('judge-list-container').innerHTML=JUDGES.map(j=>`
-    <button class="judge-btn" onclick="selectJudge('${j.id}')">
+  document.getElementById('judge-list-container').innerHTML=JUDGES.map(j=>{
+    const climbs=j._climbs&&j._climbs.size>0?[...j._climbs].sort((a,b)=>a-b):null;
+    const chip=climbs?`<span class="judge-assigned-chip">Climbs: ${climbs.map(c=>'C'+c).join(', ')}</span>`:'';
+    return`<button class="judge-btn" onclick="selectJudge('${j.id}')">
       <div class="judge-avatar">${initials(j.name)}</div>
       <div><div class="judge-btn-name">${j.name}</div><div class="judge-btn-id">${j.id}</div></div>
-    </button>`).join('');
-}
-function selectJudge(id){
-  currentJudge=JUDGES.find(j=>j.id===id);
-  selectedCategory=null;selectedClimbIdx=null;
-  showScreen('setup');
-}
-
-// ── SETUP ──
-function renderSetup(){
-  document.getElementById('setup-judge-chip').textContent=currentJudge.name;
-  const bar=document.getElementById('current-assignment-bar');
-  const assign=getMyAssignment();
-  if(assign){bar.textContent=`Current: ${assign.category} · Climb ${assign.climbIdx}`;bar.style.display='';}
-  else bar.style.display='none';
-
-  // Category buttons — only show categories that have climbs assigned
-  const cats=Object.keys(CATEGORY_CLIMBS);
-  document.getElementById('category-grid').innerHTML=cats.map(cat=>`
-    <button class="cat-select-btn ${selectedCategory===cat?'selected':''}" onclick="selectCat('${cat}')">${cat}</button>`).join('');
-
-  // Climb buttons — only show climbs assigned to the selected category
-  const myClimbs=selectedCategory?(CATEGORY_CLIMBS[selectedCategory]||[]):ALL_WALL_CLIMBS;
-  document.getElementById('setup-climb-grid').innerHTML=myClimbs.map(ci=>`
-    <button class="climb-select-btn ${selectedClimbIdx===ci?'selected':''}" onclick="selectClimb(${ci})">
-      C${ci}<span class="q-count">${(queues[ci]||[]).length}q</span>
-    </button>`).join('');
-
-  document.getElementById('setup-confirm-btn').disabled=!(selectedCategory&&selectedClimbIdx!==null);
-}
-function selectCat(cat){selectedCategory=cat;selectedClimbIdx=null;renderSetup();}
-function selectClimb(ci){selectedClimbIdx=ci;renderSetup();}
-function getMyAssignment(){return currentJudge._assignment||null;}
-function confirmSetup(){
-  currentJudge._assignment={category:selectedCategory,climbIdx:selectedClimbIdx};
-  showToast(`Assigned: ${selectedCategory} · Climb ${selectedClimbIdx}`,'info');
-  showScreen('judge-home');
-}
-
-function renderJudgeHome(){
-  const a=getMyAssignment();
-  document.getElementById('home-judge-chip').textContent=currentJudge.name;
-  document.getElementById('home-assignment-value').textContent=a?`${a.category} · Climb ${a.climbIdx}`:'Not assigned';
-  const qLen=a?(queues[a.climbIdx]||[]).length:0;
-  document.getElementById('home-queue-badge').textContent=qLen;
-  document.getElementById('home-queue-badge').className='action-badge'+(qLen===0?' empty':'');
-  document.getElementById('home-queue-sub').textContent=qLen===0?'No one queuing yet':`${qLen} competitor${qLen!==1?'s':''} waiting`;
-  const nb=document.getElementById('nav-queue-badge');
-  nb.textContent=qLen;nb.style.display=qLen>0?'':'none';
-}
-
-// ── CAMERA SCANNING ──────────────────────────────────────────────
-let cameraStream = null;
-let cameraAnimFrame = null;
-
-function startCamera() {
-  const video   = document.getElementById('judge-qr-video');
-  const canvas  = document.getElementById('judge-qr-canvas');
-  const status  = document.getElementById('judge-camera-status');
-  const errBox  = document.getElementById('judge-camera-error');
-  const ctx     = canvas.getContext('2d');
-
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    status.style.display = 'none';
-    errBox.style.display = '';
-    return;
-  }
-
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-    .then(stream => {
-      cameraStream = stream;
-      video.srcObject = stream;
-      video.play();
-      status.textContent = 'Point at competitor QR code';
-      errBox.style.display = 'none';
-      requestAnimationFrame(function scanFrame() {
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width  = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-          if (code && code.data) {
-            stopCamera();
-            // Extract reg from full URL (?reg=A001) or treat raw value as reg
-            const match = code.data.match(/[?&]reg=([A-Z0-9]+)/i);
-            const reg   = match ? match[1].toUpperCase() : code.data.trim().toUpperCase();
-            if (findComp(reg)) {
-              scanComp(reg);
-            } else {
-              status.style.display = '';
-              status.textContent   = `Unknown QR: ${reg}`;
-              errBox.style.display = '';
-              errBox.textContent   = `No competitor found for code "${reg}". Try the list below.`;
-              startCamera(); // restart
-            }
-            return;
-          }
-        }
-        cameraAnimFrame = requestAnimationFrame(scanFrame);
-      });
-    })
-    .catch(err => {
-      status.style.display = 'none';
-      errBox.style.display = '';
-      errBox.textContent   = 'Camera access denied. Use the list below to add competitors.';
-    });
-}
-
-function stopCamera() {
-  if (cameraAnimFrame) { cancelAnimationFrame(cameraAnimFrame); cameraAnimFrame = null; }
-  if (cameraStream)    { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
-}
-
-// ── SCAN SCREEN ──────────────────────────────────────────────────
-function renderScanList(){
-  const a=getMyAssignment();
-  document.getElementById('scan-judge-chip').textContent=currentJudge.name;
-  document.getElementById('scan-demo-list').innerHTML=COMPETITORS.map(c=>{
-    const inClimb=compCurrentClimb(c.reg);
-    const alreadyHere=a&&inClimb===a.climbIdx;
-    const elsewhere=inClimb!==null&&!alreadyHere;
-    let chip='';
-    if(alreadyHere)chip=`<span class="already-here-chip">✓ In your queue</span>`;
-    else if(elsewhere)chip=`<span class="in-queue-chip">In C${inClimb+1} queue</span>`;
-    return `<button class="demo-comp-btn" onclick="scanComp('${c.reg}')">
-      <div><div style="font-weight:600">${c.name}</div><div style="color:var(--text-muted);font-size:12px">${c.reg}</div></div>
-      <div style="display:flex;align-items:center;gap:6px;">${chip}<span class="cat-badge ${catClass(c.category)}">${c.category}</span></div>
+      ${chip}
     </button>`;
   }).join('');
 }
 
-function scanComp(reg){
-  const comp=findComp(reg);
-  const a=getMyAssignment();
-  currentScoringComp=comp;
+function selectJudge(id){
+  currentJudge=JUDGES.find(j=>j.id===id);
+  if(!currentJudge._climbs) currentJudge._climbs=new Set();
+  setupSelectedClimbs=new Set(currentJudge._climbs);
+  // If judge already has climbs assigned, go straight to home
+  if(currentJudge._climbs.size>0){showScreen('judge-home');}
+  else{showScreen('setup');}
+}
 
-  // ── Category check — block if competitor not in judge's assigned category ──
-  if(a && comp.category !== a.category){
-    document.getElementById('wc-reg').textContent=comp.reg;
-    document.getElementById('wc-name').textContent=comp.name;
-    document.getElementById('wc-comp-cat').textContent=comp.category;
-    document.getElementById('wc-judge-cat').textContent=a.category;
-    const badgeEl=document.getElementById('wc-comp-cat-badge');
-    badgeEl.innerHTML=`<span class="cat-badge ${catClass(comp.category)}">${comp.category}</span>`;
-    showScreen('judge-wrong-cat');
+// ── SETUP ──────────────────────────────────────────────────────
+function renderSetup(){
+  document.getElementById('setup-judge-chip').textContent=currentJudge.name;
+
+  document.getElementById('setup-climb-grid').innerHTML=ALL_WALL_CLIMBS.map(ci=>{
+    const selected=setupSelectedClimbs.has(ci);
+    const qLen=(queues[ci]||[]).length;
+    // Which categories do this climb (show as tooltip-style sub-label)
+    const cats=Object.entries(CATEGORY_CLIMBS)
+      .filter(([cat,climbs])=>climbs.includes(ci))
+      .map(([cat])=>cat.replace(' Female','F').replace(' Male','M'))
+      .join(', ');
+    return`<button class="climb-select-btn ${selected?'selected':''}" onclick="toggleSetupClimb(${ci})">
+      C${ci}
+      <span class="q-count">${qLen}q</span>
+    </button>`;
+  }).join('');
+
+  const sel=[...setupSelectedClimbs].sort((a,b)=>a-b);
+  const summary=document.getElementById('setup-selected-summary');
+  if(sel.length===0){
+    summary.textContent='No climbs selected';
+  } else {
+    summary.textContent=`Selected: ${sel.map(c=>'Climb '+c).join(' · ')}`;
+  }
+  document.getElementById('setup-confirm-btn').disabled=sel.length===0;
+}
+
+function toggleSetupClimb(ci){
+  if(setupSelectedClimbs.has(ci)){
+    setupSelectedClimbs.delete(ci);
+  } else {
+    if(setupSelectedClimbs.size>=3){showToast('Max 3 climbs per judge','warn');return;}
+    setupSelectedClimbs.add(ci);
+  }
+  renderSetup();
+}
+
+function confirmSetup(){
+  currentJudge._climbs=new Set(setupSelectedClimbs);
+  const climbs=[...currentJudge._climbs].sort((a,b)=>a-b).map(c=>'C'+c).join(', ');
+  showToast(`Assigned: ${climbs}`,'info');
+  // Default active queue tab to first assigned climb
+  activeQueueClimb=[...currentJudge._climbs].sort((a,b)=>a-b)[0];
+  showScreen('judge-home');
+}
+
+// ── HOME ──────────────────────────────────────────────────────
+function renderJudgeHome(){
+  document.getElementById('home-judge-chip').textContent=currentJudge.name;
+  const myClimbs=getMyClimbs();
+  const totalQ=myClimbs.reduce((s,ci)=>s+(queues[ci]||[]).length,0);
+
+  document.getElementById('home-climbs-list').innerHTML=myClimbs.map(ci=>{
+    const qLen=(queues[ci]||[]).length;
+    const cats=Object.entries(CATEGORY_CLIMBS)
+      .filter(([cat,climbs])=>climbs.includes(ci))
+      .map(([cat])=>cat).join(', ');
+    return`<div class="home-climb-card">
+      <div class="home-climb-number">${ci}</div>
+      <div class="home-climb-info">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;">CLIMB ${ci}</div>
+        <div class="home-climb-cats">${cats}</div>
+      </div>
+      <div class="home-climb-badge ${qLen===0?'empty':''}">${qLen}</div>
+    </div>`;
+  }).join('');
+
+  const nb=document.getElementById('nav-queue-badge');
+  nb.textContent=totalQ;nb.style.display=totalQ>0?'':'none';
+}
+
+// ── CAMERA ──────────────────────────────────────────────────────
+let cameraStream=null,cameraAnimFrame=null;
+
+function startCamera(){
+  const video=document.getElementById('judge-qr-video');
+  const canvas=document.getElementById('judge-qr-canvas');
+  const status=document.getElementById('judge-camera-status');
+  const errBox=document.getElementById('judge-camera-error');
+  const ctx=canvas.getContext('2d');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){status.style.display='none';errBox.style.display='';return;}
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
+    .then(stream=>{
+      cameraStream=stream;video.srcObject=stream;video.play();
+      status.textContent='Point at competitor QR code';errBox.style.display='none';
+      requestAnimationFrame(function scanFrame(){
+        if(video.readyState===video.HAVE_ENOUGH_DATA){
+          canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+          ctx.drawImage(video,0,0,canvas.width,canvas.height);
+          const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+          const code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+          if(code&&code.data){
+            stopCamera();
+            const match=code.data.match(/[?&]reg=([A-Z0-9]+)/i);
+            const reg=match?match[1].toUpperCase():code.data.trim().toUpperCase();
+            if(findComp(reg)){handleScan(reg);}
+            else{errBox.style.display='';errBox.textContent=`Unknown code: ${reg}`;startCamera();}
+            return;
+          }
+        }
+        cameraAnimFrame=requestAnimationFrame(scanFrame);
+      });
+    })
+    .catch(()=>{status.style.display='none';errBox.style.display='';errBox.textContent='Camera access denied. Use the list below.';});
+}
+
+function stopCamera(){
+  if(cameraAnimFrame){cancelAnimationFrame(cameraAnimFrame);cameraAnimFrame=null;}
+  if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
+}
+
+// ── SCAN SCREEN ──────────────────────────────────────────────────
+function renderScanList(){
+  document.getElementById('scan-judge-chip').textContent=currentJudge.name;
+  const myClimbs=new Set(getMyClimbs());
+  document.getElementById('scan-demo-list').innerHTML=COMPETITORS.map(c=>{
+    const valid=validClimbsForComp(c.reg);
+    const inQ=compCurrentClimb(c.reg);
+    let chip='';
+    if(inQ!==null)chip=`<span class="in-queue-chip">Q: C${inQ}</span>`;
+    const dimmed=valid.length===0?' style="opacity:0.45;"':'';
+    return`<button class="demo-comp-btn" onclick="handleScan('${c.reg}')"${dimmed}>
+      <div>
+        <div style="font-weight:600">${c.name}</div>
+        <div style="color:var(--text-muted);font-size:12px">${c.reg} · ${c.category}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        ${chip}
+        <span class="cat-badge ${catClass(c.category)}">${c.category}</span>
+      </div>
+    </button>`;
+  }).join('');
+}
+
+function hideScanError(){
+  document.getElementById('scan-error-banner').style.display='none';
+}
+
+function showScanError(title,detail){
+  const b=document.getElementById('scan-error-banner');
+  document.getElementById('scan-err-title').textContent=title;
+  document.getElementById('scan-err-detail').textContent=detail;
+  b.style.display='';
+  setTimeout(()=>b.style.display='none',4000);
+}
+
+// ── SCAN HANDLER ──────────────────────────────────────────────────
+function handleScan(reg){
+  const comp=findComp(reg);
+  if(!comp) return;
+
+  const valid=validClimbsForComp(reg);
+
+  if(valid.length===0){
+    // Competitor's category has no overlap with this judge's climbs
+    const myClimbs=getMyClimbs();
+    showScanError(
+      '⛔ NOT YOUR CATEGORY',
+      `${comp.name} (${comp.category}) is not on any of your climbs (${myClimbs.map(c=>'C'+c).join(', ')})`
+    );
+    // Stay on scan, restart camera
+    startCamera();
     return;
   }
 
-  document.getElementById('jc-reg').textContent=comp.reg;
-  document.getElementById('jc-name').textContent=comp.name;
-  const catEl=document.getElementById('jc-cat');
-  catEl.textContent=comp.category;catEl.className='comp-cat '+catClass(comp.category);
-  document.getElementById('jc-queue-target').textContent=a?`${a.category} · Climb ${a.climbIdx+1}`:'No assignment';
-  const pos=a?queues[a.climbIdx].length+1:'-';
-  document.getElementById('jc-queue-pos').textContent=a?`Will be #${pos} in queue`:'';
-  const inClimb=compCurrentClimb(reg);
-  const warn=document.getElementById('jc-warning');
-  if(inClimb!==null&&!(a&&inClimb===a.climbIdx)){
-    warn.textContent=`⚠ Already in Climb ${inClimb+1} queue — will be moved here.`;warn.style.display='';
-  } else if(a&&inClimb===a.climbIdx){
-    warn.textContent=`Already in your queue!`;warn.style.display='';warn.style.background='rgba(46,204,113,0.1)';warn.style.borderColor='var(--success)';warn.style.color='var(--success)';
+  currentScoringComp=comp;
+
+  if(valid.length===1){
+    // Only one valid climb — skip picker, go straight to action for that climb
+    scoringFromClimb=valid[0];
+    showScreen('judge-action');
   } else {
-    warn.style.display='none';
+    // Multiple valid climbs — show action screen with all of them
+    scoringFromClimb=null;
+    showScreen('judge-action');
   }
-  showScreen('judge-confirm');
 }
 
-function confirmAddToQueue(){
-  const a=getMyAssignment();if(!a)return;
-  const reg=currentScoringComp.reg;
-  apiJoinQueue(reg, a.climbIdx, ()=>{
-    showToast(`${currentScoringComp.name} added to Climb ${a.climbIdx+1} queue`,'info');
+// ── ACTION SCREEN ──────────────────────────────────────────────────
+function renderActionScreen(){
+  if(!currentScoringComp) return;
+  const comp=currentScoringComp;
+  document.getElementById('action-judge-chip').textContent=currentJudge.name;
+  document.getElementById('action-reg').textContent=comp.reg;
+  document.getElementById('action-name').textContent=comp.name;
+  const catBadge=document.getElementById('action-cat-badge');
+  catBadge.innerHTML=`<span class="cat-badge ${catClass(comp.category)}">${comp.category}</span>`;
+
+  const valid=validClimbsForComp(comp.reg); // wall climb IDs valid for this comp on judge's climbs
+  const myClimbs=getMyClimbs();
+
+  document.getElementById('action-climbs-list').innerHTML=myClimbs.map(ci=>{
+    const isValid=valid.includes(ci);
+    const qLen=(queues[ci]||[]).length;
+    const inThisQ=(queues[ci]||[]).find(e=>e.reg===comp.reg);
+    const qPos=inThisQ?(queues[ci]||[]).indexOf(inThisQ)+1:null;
+
+    const cats=Object.entries(CATEGORY_CLIMBS)
+      .filter(([cat,climbs])=>climbs.includes(ci))
+      .map(([cat])=>cat).join(', ');
+
+    if(!isValid){
+      return`<div class="action-climb-row invalid">
+        <div class="action-climb-header">
+          <div class="action-climb-num">${ci}</div>
+          <div class="action-climb-meta">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;">CLIMB ${ci}</div>
+            <div class="action-climb-cats">${cats}</div>
+            <div class="action-climb-tag">NOT THIS CATEGORY</div>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    const queueBtnLabel=inThisQ?`✓ IN QUEUE (#${qPos})`:`+ QUEUE (${qLen} waiting)`;
+    const queueBtnStyle=inThisQ?'background:var(--warning);color:#000;':'';
+
+    return`<div class="action-climb-row">
+      <div class="action-climb-header">
+        <div class="action-climb-num">${ci}</div>
+        <div class="action-climb-meta">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;">CLIMB ${ci}</div>
+          <div class="action-climb-cats">${cats}</div>
+        </div>
+      </div>
+      <div class="action-climb-btns">
+        <button class="action-q-btn" style="${queueBtnStyle}" onclick="actionQueue(${ci})">${queueBtnLabel}</button>
+        <button class="action-score-btn" onclick="actionScore(${ci})">🧗 SCORE</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function actionQueue(ci){
+  const comp=currentScoringComp;
+  apiJoinQueue(comp.reg, ci, ()=>{
+    const pos=(queues[ci]||[]).length;
+    showToast(`${comp.name} → C${ci} queue (#${pos})`,'info');
   });
+  activeQueueClimb=ci;
   showScreen('judge-queue');
 }
 
-// ── QUEUE ──
+function actionScore(ci){
+  scoringFromClimb=ci;
+  activeClimbExpanded=ci;
+  showScreen('judge-scoring');
+}
+
+// ── QUEUE ──────────────────────────────────────────────────────
 function renderJudgeQueue(){
-  const a=getMyAssignment();
-  if(!a){document.getElementById('judge-queue-body').innerHTML=`<div class="queue-empty"><div class="queue-empty-icon">⚠️</div><div class="queue-empty-text">NO CLIMB ASSIGNED</div><button class="btn-primary" style="margin-top:16px" onclick="showScreen('setup')">SET UP NOW</button></div>`;return;}
-  document.getElementById('queue-screen-title').textContent=`CLIMB ${a.climbIdx+1} QUEUE`;
+  const myClimbs=getMyClimbs();
+  if(activeQueueClimb===null||!myClimbs.includes(activeQueueClimb)) activeQueueClimb=myClimbs[0]||null;
   document.getElementById('queue-judge-chip').textContent=currentJudge.name;
-  const q=queues[a.climbIdx];
+
+  // Tabs — one per assigned climb
+  document.getElementById('queue-climb-tabs').innerHTML=myClimbs.map(ci=>{
+    const len=(queues[ci]||[]).length;
+    return`<button class="queue-climb-tab ${ci===activeQueueClimb?'active':''}" onclick="switchQueueClimb(${ci})">
+      C${ci} <span class="tab-badge ${len===0?'empty':''}">${len}</span>
+    </button>`;
+  }).join('');
+
+  renderQueueBody();
+}
+
+function renderQueueBody(){
+  const q=queues[activeQueueClimb]||[];
   const body=document.getElementById('judge-queue-body');
   if(q.length===0){
-    body.innerHTML=`<div class="queue-empty"><div class="queue-empty-icon">🕐</div><div class="queue-empty-text">QUEUE EMPTY</div><div style="color:var(--text-muted);font-size:13px;">Scan a competitor to add them</div><button class="btn-primary" style="margin-top:16px;max-width:260px" onclick="showScreen('judge-scan')">📷 SCAN COMPETITOR</button></div>`;
+    body.innerHTML=`<div class="queue-empty">
+      <div class="queue-empty-icon">🕐</div>
+      <div class="queue-empty-text">NO ONE QUEUING FOR CLIMB ${activeQueueClimb}</div>
+      <div style="color:var(--text-muted);font-size:13px;">Scan a competitor to add them</div>
+    </div>`;
     return;
   }
   body.innerHTML=q.map((entry,idx)=>{
-    const comp=findComp(entry.reg);const isNext=idx===0;
-    return `<div class="queue-entry ${isNext?'is-next':''}">
+    const comp=findComp(entry.reg);
+    const isNext=idx===0;
+    return`<div class="queue-entry ${isNext?'is-next':''}">
       ${isNext?'<div class="next-banner">▶ NEXT UP — CALL THIS COMPETITOR</div>':''}
       <div class="queue-entry-header">
         <div class="queue-pos">${idx+1}</div>
@@ -851,41 +906,42 @@ function renderJudgeQueue(){
           <div class="queue-comp-name">${comp.name}</div>
           <div class="queue-comp-meta">
             <span class="queue-reg">${comp.reg}</span>
-            <span class="cat-badge ${catClass(comp.category)}" style="font-size:11px;padding:2px 6px">${comp.category}</span>
+            <span class="cat-badge ${catClass(comp.category)}" style="font-size:11px;padding:2px 6px;">${comp.category}</span>
             <span class="queue-wait">⏱ ${fmtWait(entry.joinedAt)}</span>
           </div>
         </div>
         <button class="queue-remove-btn" onclick="removeFromQ('${entry.reg}')">✕</button>
       </div>
       ${isNext?`<div class="queue-entry-actions">
-        <button class="queue-score-btn" onclick="openScoring('${entry.reg}')">🧗 OPEN SCORING</button>
+        <button class="queue-score-btn" onclick="openScoring('${entry.reg}',${activeQueueClimb})">🧗 OPEN SCORING</button>
         <button class="queue-done-btn" onclick="markDone('${entry.reg}')">✓ DONE</button>
       </div>`:''}
     </div>`;
   }).join('');
 }
 
-function removeFromQ(reg){const a=getMyAssignment();if(!a)return;apiLeaveQueue(reg,a.climbIdx,'removed');showToast(findComp(reg).name+' removed','warn');renderJudgeQueue();}
-function markDone(reg){const a=getMyAssignment();if(!a)return;apiLeaveQueue(reg,a.climbIdx,'done');showToast(findComp(reg).name+' marked done ✓');renderJudgeQueue();}
-function openScoring(reg){
+function switchQueueClimb(ci){activeQueueClimb=ci;renderJudgeQueue();}
+function removeFromQ(reg){apiLeaveQueue(reg,activeQueueClimb,'removed');showToast(findComp(reg).name+' removed','warn');renderJudgeQueue();}
+function markDone(reg){apiLeaveQueue(reg,activeQueueClimb,'done');showToast(findComp(reg).name+' marked done ✓');renderJudgeQueue();}
+function openScoring(reg,ci){
   currentScoringComp=findComp(reg);
-  const a=getMyAssignment();
-  activeClimbExpanded=a?a.climbIdx:null;
+  scoringFromClimb=ci;
+  activeClimbExpanded=ci;
   showScreen('judge-scoring');
 }
 
-// ── SCORING ──
+// ── SCORING ──────────────────────────────────────────────────────
 function renderJudgeScoring(){
-  if(!currentScoringComp)return;
+  if(!currentScoringComp) return;
   const comp=currentScoringComp;
   document.getElementById('scoring-judge-chip').textContent=currentJudge.name;
   document.getElementById('scoring-comp-name').textContent=comp.name+' · '+comp.reg;
   document.getElementById('scoring-comp-cat').textContent=comp.category;
   document.getElementById('scoring-total-val').textContent=totalScore(comp.reg);
-  const myClimbs=catClimbs(comp.reg); // ordered wall climb IDs for this competitor's category
+  const myClimbs=catClimbs(comp.reg);
   const list=document.getElementById('scoring-climbs-list');
   list.innerHTML='';
-  myClimbs.forEach((ci,slotIdx)=>{
+  myClimbs.forEach(ci=>{
     const attempts=allScores[comp.reg][ci]||[];
     const best=climbBest(comp.reg,ci);
     const topped=climbTopped(comp.reg,ci);
@@ -953,11 +1009,19 @@ function toggleClimb(ci){
 }
 function addScore(reg,ci,score){if((allScores[reg][ci]||[]).length>=MAX_ATTEMPTS||climbTopped(reg,ci))return;const ai=(allScores[reg][ci]||[]).length;apiSubmitScore(currentJudge.id,reg,ci,ai,score,false,false);showToast(`C${ci} A${ai+1}: ${score}`);renderJudgeScoring();}
 function addTop(reg,ci){if((allScores[reg][ci]||[]).length>=MAX_ATTEMPTS||climbTopped(reg,ci))return;const ai=(allScores[reg][ci]||[]).length;const bonus=TOP_BONUS[ai]||0;apiSubmitScore(currentJudge.id,reg,ci,ai,TOP_SCORE,false,true);showToast(`★ TOPPED! 60+${bonus}=${TOP_SCORE+bonus}`,'top');renderJudgeScoring();}
-function togglePM(reg,ci,ai){const a=allScores[reg][ci][ai];if(a.isTop)return;const newPM=!a.positiveMovement;apiSubmitScore(currentJudge.id,reg,ci,ai,a.score,newPM,false);showToast(newPM?'+PM added':'PM removed');renderJudgeScoring();}
+function togglePM(reg,ci,ai){const a=allScores[reg][ci][ai];if(a.isTop)return;apiSubmitScore(currentJudge.id,reg,ci,ai,a.score,!a.positiveMovement,false);showToast(!a.positiveMovement?'+PM added':'PM removed');renderJudgeScoring();}
 function delAttempt(reg,ci,ai){apiDeleteAttempt(reg,ci,ai);showToast('Attempt deleted','warn');renderJudgeScoring();}
-function doneScoring(){const a=getMyAssignment();if(a){apiLeaveQueue(currentScoringComp.reg,a.climbIdx,'done');showToast(currentScoringComp.name+' removed from queue ✓');}showScreen('judge-queue');}
 
-// ── EDIT MODAL ──
+function doneScoring(){
+  if(scoringFromClimb!==null){
+    apiLeaveQueue(currentScoringComp.reg,scoringFromClimb,'done');
+    showToast(currentScoringComp.name+' removed from queue ✓');
+    activeQueueClimb=scoringFromClimb;
+  }
+  showScreen('judge-queue');
+}
+
+// ── EDIT MODAL ──────────────────────────────────────────────────
 function openEdit(reg,ci,ai){
   const a=allScores[reg][ci][ai];
   editState={reg,ci,ai,score:a.score,pm:a.positiveMovement,isTop:a.isTop};
@@ -980,11 +1044,11 @@ function toggleModalPM(){if(!editState.isTop){editState.pm=!editState.pm;refresh
 function saveEdit(){apiSubmitScore(currentJudge.id,editState.reg,editState.ci,editState.ai,editState.score,editState.isTop?false:editState.pm,editState.isTop);closeModal();showToast('Updated ✓');renderJudgeScoring();}
 function closeModal(){document.getElementById('edit-modal').classList.remove('open');}
 
-// ── TOAST ──
+// ── TOAST ──────────────────────────────────────────────────────
 let toastT;
 function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(type?' '+type:'');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400);}
 
-// ── POLL REFRESH ──
+// ── POLL REFRESH ──────────────────────────────────────────────────
 function onPollRefresh(){
   const active=document.querySelector('.screen.active');if(!active)return;
   const id=active.id;
@@ -994,7 +1058,7 @@ function onPollRefresh(){
   if(id==='screen-judge-scan')renderScanList();
 }
 
-// ── INIT ──
+// ── INIT ──────────────────────────────────────────────────────
 showLoadingScreen();
 initApp(()=>{
   hideLoadingScreen();
