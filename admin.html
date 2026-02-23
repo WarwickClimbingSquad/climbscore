@@ -442,13 +442,15 @@
 <script>
 // ═══════════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════
-// CONFIG — paste your Apps Script web app URL here
-// ═══════════════════════════════════════════════════════════════
-const API_URL = 'https://script.google.com/macros/s/AKfycbzADP0CKWsw5OhiqSW2V73huOjknTUFgSckqJ6a10HeFyKba0ZmACnwhhBfev3W_ib7PQ/exec'; // e.g. https://script.google.com/macros/s/ABC.../exec
 
 // ═══════════════════════════════════════════════════════════════
-// API CLIENT — fetch() based, works from GitHub Pages
+// CONFIG — your Apps Script web app URL
+// ═══════════════════════════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbzADP0CKWsw5OhiqSW2V73huOjknTUFgSckqJ6a10HeFyKba0ZmACnwhhBfev3W_ib7PQ/exec';
+
+// ═══════════════════════════════════════════════════════════════
+// API CLIENT — JSONP-based (bypasses CORS for Apps Script)
+// GET reads use JSONP; POST writes use no-cors mode
 // ═══════════════════════════════════════════════════════════════
 let CLIMB_ALLOWED_SCORES=[],TOP_SCORE=60,MAX_ATTEMPTS=5,TOP_BONUS=[4,3,2,1,0],NUM_CLIMBS=8;
 let JUDGES=[],COMPETITORS=[];
@@ -457,24 +459,44 @@ const CAT_KEY={'U13':'cat-u13','U15':'cat-u15','U17':'cat-u17','U21':'cat-u21'};
 let allScores={},queues={};
 const POLL_INTERVAL_MS=8000;
 let pollTimer=null;
+let _cbIdx=0;
 
-async function apiFetch(params){
-  const url=new URL(API_URL);
-  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):v));
-  const r=await fetch(url.toString(),{redirect:'follow'});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return r.json();
+// JSONP GET — injects a <script> tag; Apps Script wraps response in callback(data)
+function jsonpGet(params){
+  return new Promise((resolve,reject)=>{
+    const cbName='_cb'+(_cbIdx++);
+    const timeout=setTimeout(()=>{
+      delete window[cbName];
+      reject(new Error('Timeout'));
+    },15000);
+    window[cbName]=(data)=>{
+      clearTimeout(timeout);
+      delete window[cbName];
+      resolve(data);
+    };
+    const url=new URL(API_URL);
+    url.searchParams.set('callback',cbName);
+    Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):v));
+    const s=document.createElement('script');
+    s.src=url.toString();
+    s.onerror=()=>{clearTimeout(timeout);delete window[cbName];reject(new Error('Script load failed'));};
+    document.head.appendChild(s);
+    setTimeout(()=>s.remove(),16000);
+  });
 }
 
-async function apiPost(body){
-  const r=await fetch(API_URL,{method:'POST',body:JSON.stringify(body),redirect:'follow'});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return r.json();
+// no-cors POST — fire-and-forget write; optimistic UI handles the response
+function apiPostNC(body){
+  fetch(API_URL,{
+    method:'POST',
+    mode:'no-cors',
+    body:JSON.stringify(body)
+  }).catch(e=>console.warn('POST error',e));
 }
 
 async function initApp(onReady){
   try{
-    const cfg=await apiFetch({action:'getConfig'});
+    const cfg=await jsonpGet({action:'getConfig'});
     if(!cfg.success){showFatalError(cfg.error||'Config load failed');return;}
     CLIMB_ALLOWED_SCORES=cfg.climbScores;TOP_SCORE=cfg.topScore;MAX_ATTEMPTS=cfg.maxAttempts;
     TOP_BONUS=cfg.topBonus;NUM_CLIMBS=cfg.numClimbs;
@@ -485,14 +507,17 @@ async function initApp(onReady){
     await refreshAll();
     onReady();
     startPolling();
-  }catch(e){showFatalError('Could not connect to server. Check API_URL is set correctly.');}
+  }catch(e){
+    console.error('initApp error',e);
+    showFatalError('Could not connect to Google Sheets. Make sure API_URL is set and Apps Script is deployed.');
+  }
 }
 
 async function refreshAll(cb){
   try{
     const [sr,qr]=await Promise.all([
-      apiFetch({action:'getAllScores'}),
-      apiFetch({action:'getQueues'})
+      jsonpGet({action:'getAllScores'}),
+      jsonpGet({action:'getQueues'})
     ]);
     if(sr.success) mergeScores(sr.scores);
     if(qr.success) mergeQueues(qr.queues);
@@ -510,41 +535,32 @@ function startPolling(){
   },POLL_INTERVAL_MS);
 }
 
-async function apiSubmitScore(judgeId,compReg,climbIdx,attemptIdx,score,positiveMovement,isTop,onDone){
+// Write functions — optimistic local update + fire-and-forget POST
+function apiSubmitScore(judgeId,compReg,climbIdx,attemptIdx,score,positiveMovement,isTop,onDone){
   const attempts=allScores[compReg][climbIdx];
   const attempt={score,positiveMovement,isTop};
   if(attemptIdx<attempts.length)attempts[attemptIdx]=attempt;else attempts.push(attempt);
-  try{
-    const r=await apiPost({action:'submitScore',judgeId,compReg,climbIdx,attemptIdx,score,positiveMovement,isTop});
-    if(!r.success) showToast('Sync error','warn');
-    if(onDone) onDone(r);
-  }catch(e){showToast('Connection error','warn');if(onDone)onDone({success:false});}
+  apiPostNC({action:'submitScore',judgeId,compReg,climbIdx,attemptIdx,score,positiveMovement,isTop});
+  if(onDone) onDone({success:true});
 }
 
-async function apiDeleteAttempt(compReg,climbIdx,attemptIdx,onDone){
+function apiDeleteAttempt(compReg,climbIdx,attemptIdx,onDone){
   allScores[compReg][climbIdx].splice(attemptIdx,1);
-  try{
-    const r=await apiPost({action:'deleteAttempt',compReg,climbIdx,attemptIdx});
-    if(!r.success) showToast('Sync error','warn');
-    if(onDone) onDone(r);
-  }catch(e){showToast('Connection error','warn');if(onDone)onDone({success:false});}
+  apiPostNC({action:'deleteAttempt',compReg,climbIdx,attemptIdx});
+  if(onDone) onDone({success:true});
 }
 
-async function apiJoinQueue(compReg,climbIdx,onDone){
+function apiJoinQueue(compReg,climbIdx,onDone){
   for(let i=0;i<NUM_CLIMBS;i++)queues[i]=queues[i].filter(e=>e.reg!==compReg);
   queues[climbIdx].push({reg:compReg,joinedAt:Date.now()});
-  try{
-    const r=await apiPost({action:'joinQueue',compReg,climbIdx});
-    if(onDone) onDone(r);
-  }catch(e){showToast('Connection error','warn');if(onDone)onDone({success:false});}
+  apiPostNC({action:'joinQueue',compReg,climbIdx});
+  if(onDone) onDone({success:true});
 }
 
-async function apiLeaveQueue(compReg,climbIdx,status,onDone){
+function apiLeaveQueue(compReg,climbIdx,status,onDone){
   queues[climbIdx]=queues[climbIdx].filter(e=>e.reg!==compReg);
-  try{
-    const r=await apiPost({action:'leaveQueue',compReg,climbIdx,status});
-    if(onDone) onDone(r);
-  }catch(e){showToast('Connection error','warn');if(onDone)onDone({success:false});}
+  apiPostNC({action:'leaveQueue',compReg,climbIdx,status});
+  if(onDone) onDone({success:true});
 }
 
 // Shared helpers

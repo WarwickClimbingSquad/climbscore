@@ -233,13 +233,14 @@
 
 <script>
 
+
 // ═══════════════════════════════════════════════════════════════
-// CONFIG — paste your Apps Script web app URL here
+// CONFIG — your Apps Script web app URL
 // ═══════════════════════════════════════════════════════════════
 const API_URL = 'https://script.google.com/macros/s/AKfycbzADP0CKWsw5OhiqSW2V73huOjknTUFgSckqJ6a10HeFyKba0ZmACnwhhBfev3W_ib7PQ/exec';
 
 // ═══════════════════════════════════════════════════════════════
-// API CLIENT — fetch() based, works from GitHub Pages
+// API CLIENT — JSONP read-only (competitor view)
 // ═══════════════════════════════════════════════════════════════
 let CLIMB_ALLOWED_SCORES=[],TOP_SCORE=60,MAX_ATTEMPTS=5,TOP_BONUS=[4,3,2,1,0],NUM_CLIMBS=8;
 let COMPETITORS=[];
@@ -247,18 +248,27 @@ const CAT_KEY={'U13':'cat-u13','U15':'cat-u15','U17':'cat-u17','U21':'cat-u21'};
 let allScores={},queues={};
 const POLL_INTERVAL_MS=10000;
 let pollTimer=null;
+let _cbIdx=0;
 
-async function apiFetch(params){
-  const url=new URL(API_URL);
-  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):v));
-  const r=await fetch(url.toString(),{redirect:'follow'});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return r.json();
+function jsonpGet(params){
+  return new Promise((resolve,reject)=>{
+    const cbName='_cb'+(_cbIdx++);
+    const timeout=setTimeout(()=>{delete window[cbName];reject(new Error('Timeout'));},15000);
+    window[cbName]=(data)=>{clearTimeout(timeout);delete window[cbName];resolve(data);};
+    const url=new URL(API_URL);
+    url.searchParams.set('callback',cbName);
+    Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):v));
+    const s=document.createElement('script');
+    s.src=url.toString();
+    s.onerror=()=>{clearTimeout(timeout);delete window[cbName];reject(new Error('Script load failed'));};
+    document.head.appendChild(s);
+    setTimeout(()=>s.remove(),16000);
+  });
 }
 
 async function initApp(onReady){
   try{
-    const cfg=await apiFetch({action:'getConfig'});
+    const cfg=await jsonpGet({action:'getConfig'});
     if(!cfg.success){showFatalError(cfg.error||'Config load failed');return;}
     CLIMB_ALLOWED_SCORES=cfg.climbScores;TOP_SCORE=cfg.topScore;MAX_ATTEMPTS=cfg.maxAttempts;
     TOP_BONUS=cfg.topBonus;NUM_CLIMBS=cfg.numClimbs;COMPETITORS=cfg.competitors;
@@ -267,14 +277,17 @@ async function initApp(onReady){
     await refreshAll();
     onReady();
     startPolling();
-  }catch(e){showFatalError('Could not connect to server. Check API_URL is set correctly.');}
+  }catch(e){
+    console.error('initApp error',e);
+    showFatalError('Could not connect to Google Sheets. Make sure API_URL is set and Apps Script is deployed.');
+  }
 }
 
 async function refreshAll(cb){
   try{
     const [sr,qr]=await Promise.all([
-      apiFetch({action:'getAllScores'}),
-      apiFetch({action:'getQueues'})
+      jsonpGet({action:'getAllScores'}),
+      jsonpGet({action:'getQueues'})
     ]);
     if(sr.success) mergeScores(sr.scores);
     if(qr.success) mergeQueues(qr.queues);
