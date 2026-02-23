@@ -443,37 +443,41 @@
 // ═══════════════════════════════════════════════════════════════
 
 
+
 // ═══════════════════════════════════════════════════════════════
 // CONFIG — your Apps Script web app URL
 // ═══════════════════════════════════════════════════════════════
 const API_URL = 'https://script.google.com/macros/s/AKfycbzADP0CKWsw5OhiqSW2V73huOjknTUFgSckqJ6a10HeFyKba0ZmACnwhhBfev3W_ib7PQ/exec';
 
 // ═══════════════════════════════════════════════════════════════
-// API CLIENT — JSONP-based (bypasses CORS for Apps Script)
-// GET reads use JSONP; POST writes use no-cors mode
+// API CLIENT — JSONP (bypasses CORS for Apps Script)
 // ═══════════════════════════════════════════════════════════════
-let CLIMB_ALLOWED_SCORES=[],TOP_SCORE=60,MAX_ATTEMPTS=5,TOP_BONUS=[4,3,2,1,0],NUM_CLIMBS=8;
-let JUDGES=[],COMPETITORS=[];
-const CATEGORIES=['U13 Female','U13 Male','U15 Female','U15 Male','U17 Female','U17 Male','U21 Female','U21 Male'];
+let CLIMB_SCORES={};      // { wallClimbId: [allowedScores] }
+let CATEGORY_CLIMBS={};   // { "U13 Female": [3,7,9,...] }  ordered wall climb IDs
+let ALL_WALL_CLIMBS=[];   // [1,2,3,...] every climb used in any category
+let TOP_SCORE=60, MAX_ATTEMPTS=5, TOP_BONUS=[4,3,2,1,0];
+let JUDGES=[], COMPETITORS=[];
 const CAT_KEY={'U13':'cat-u13','U15':'cat-u15','U17':'cat-u17','U21':'cat-u21'};
-let allScores={},queues={};
+let allScores={}, queues={};
 const POLL_INTERVAL_MS=8000;
-let pollTimer=null;
-let _cbIdx=0;
+let pollTimer=null, _cbIdx=0;
 
-// JSONP GET — injects a <script> tag; Apps Script wraps response in callback(data)
+// Returns the ordered wall climb IDs for a competitor's category
+function catClimbs(reg){
+  const comp=COMPETITORS.find(c=>c.reg===reg);
+  if(!comp) return [];
+  return CATEGORY_CLIMBS[comp.category]||[];
+}
+// Returns allowed scores for a given wall climb ID
+function climbAllowed(wallClimbId){
+  return (CLIMB_SCORES[wallClimbId]||[TOP_SCORE]).filter(s=>s!==TOP_SCORE);
+}
+
 function jsonpGet(params){
   return new Promise((resolve,reject)=>{
     const cbName='_cb'+(_cbIdx++);
-    const timeout=setTimeout(()=>{
-      delete window[cbName];
-      reject(new Error('Timeout'));
-    },15000);
-    window[cbName]=(data)=>{
-      clearTimeout(timeout);
-      delete window[cbName];
-      resolve(data);
-    };
+    const timeout=setTimeout(()=>{delete window[cbName];reject(new Error('Timeout'));},15000);
+    window[cbName]=(data)=>{clearTimeout(timeout);delete window[cbName];resolve(data);};
     const url=new URL(API_URL);
     url.searchParams.set('callback',cbName);
     Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):v));
@@ -485,25 +489,27 @@ function jsonpGet(params){
   });
 }
 
-// no-cors POST — fire-and-forget write; optimistic UI handles the response
 function apiPostNC(body){
-  fetch(API_URL,{
-    method:'POST',
-    mode:'no-cors',
-    body:JSON.stringify(body)
-  }).catch(e=>console.warn('POST error',e));
+  fetch(API_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(body)}).catch(e=>console.warn('POST error',e));
 }
 
 async function initApp(onReady){
   try{
     const cfg=await jsonpGet({action:'getConfig'});
     if(!cfg.success){showFatalError(cfg.error||'Config load failed');return;}
-    CLIMB_ALLOWED_SCORES=cfg.climbScores;TOP_SCORE=cfg.topScore;MAX_ATTEMPTS=cfg.maxAttempts;
-    TOP_BONUS=cfg.topBonus;NUM_CLIMBS=cfg.numClimbs;
+    CLIMB_SCORES=cfg.climbScores;
+    CATEGORY_CLIMBS=cfg.categoryClimbs;
+    ALL_WALL_CLIMBS=cfg.allWallClimbs;
+    TOP_SCORE=cfg.topScore; MAX_ATTEMPTS=cfg.maxAttempts;
+    TOP_BONUS=cfg.topBonus||Array.from({length:MAX_ATTEMPTS},(_,i)=>Math.max(0,MAX_ATTEMPTS-1-i));
     if(cfg.judges) JUDGES=cfg.judges;
     COMPETITORS=cfg.competitors;
-    COMPETITORS.forEach(c=>{allScores[c.reg]={};for(let i=0;i<NUM_CLIMBS;i++)allScores[c.reg][i]=[];});
-    for(let i=0;i<NUM_CLIMBS;i++)queues[i]=[];
+    // Initialise score/queue storage for every wall climb used
+    COMPETITORS.forEach(c=>{
+      allScores[c.reg]={};
+      ALL_WALL_CLIMBS.forEach(ci=>allScores[c.reg][ci]=[]);
+    });
+    ALL_WALL_CLIMBS.forEach(ci=>queues[ci]=[]);
     await refreshAll();
     onReady();
     startPolling();
@@ -515,61 +521,59 @@ async function initApp(onReady){
 
 async function refreshAll(cb){
   try{
-    const [sr,qr]=await Promise.all([
-      jsonpGet({action:'getAllScores'}),
-      jsonpGet({action:'getQueues'})
-    ]);
+    const [sr,qr]=await Promise.all([jsonpGet({action:'getAllScores'}),jsonpGet({action:'getQueues'})]);
     if(sr.success) mergeScores(sr.scores);
     if(qr.success) mergeQueues(qr.queues);
   }catch(e){console.warn('Refresh failed',e);}
   if(cb) cb();
 }
 
-function mergeScores(s){for(const reg in s){if(!allScores[reg])allScores[reg]={};for(let i=0;i<NUM_CLIMBS;i++)allScores[reg][i]=s[reg][i]||[];}}
-function mergeQueues(q){for(let i=0;i<NUM_CLIMBS;i++)queues[i]=q[i]||[];}
+function mergeScores(s){
+  for(const reg in s){
+    if(!allScores[reg])allScores[reg]={};
+    ALL_WALL_CLIMBS.forEach(ci=>allScores[reg][ci]=s[reg][ci]||[]);
+  }
+}
+function mergeQueues(q){ALL_WALL_CLIMBS.forEach(ci=>queues[ci]=q[ci]||[]);}
 function startPolling(){
   if(pollTimer)clearInterval(pollTimer);
-  pollTimer=setInterval(async()=>{
-    await refreshAll();
-    if(typeof onPollRefresh==='function')onPollRefresh();
-  },POLL_INTERVAL_MS);
+  pollTimer=setInterval(async()=>{await refreshAll();if(typeof onPollRefresh==='function')onPollRefresh();},POLL_INTERVAL_MS);
 }
 
-// Write functions — optimistic local update + fire-and-forget POST
-function apiSubmitScore(judgeId,compReg,climbIdx,attemptIdx,score,positiveMovement,isTop,onDone){
-  const attempts=allScores[compReg][climbIdx];
+// wallClimbId is the actual climb number on the wall (1-based)
+function apiSubmitScore(judgeId,compReg,wallClimbId,attemptIdx,score,positiveMovement,isTop,onDone){
+  const attempts=allScores[compReg][wallClimbId];
   const attempt={score,positiveMovement,isTop};
   if(attemptIdx<attempts.length)attempts[attemptIdx]=attempt;else attempts.push(attempt);
-  apiPostNC({action:'submitScore',judgeId,compReg,climbIdx,attemptIdx,score,positiveMovement,isTop});
+  apiPostNC({action:'submitScore',judgeId,compReg,climbIdx:wallClimbId,attemptIdx,score,positiveMovement,isTop});
   if(onDone) onDone({success:true});
 }
-
-function apiDeleteAttempt(compReg,climbIdx,attemptIdx,onDone){
-  allScores[compReg][climbIdx].splice(attemptIdx,1);
-  apiPostNC({action:'deleteAttempt',compReg,climbIdx,attemptIdx});
+function apiDeleteAttempt(compReg,wallClimbId,attemptIdx,onDone){
+  allScores[compReg][wallClimbId].splice(attemptIdx,1);
+  apiPostNC({action:'deleteAttempt',compReg,climbIdx:wallClimbId,attemptIdx});
   if(onDone) onDone({success:true});
 }
-
-function apiJoinQueue(compReg,climbIdx,onDone){
-  for(let i=0;i<NUM_CLIMBS;i++)queues[i]=queues[i].filter(e=>e.reg!==compReg);
-  queues[climbIdx].push({reg:compReg,joinedAt:Date.now()});
-  apiPostNC({action:'joinQueue',compReg,climbIdx});
+function apiJoinQueue(compReg,wallClimbId,onDone){
+  ALL_WALL_CLIMBS.forEach(ci=>queues[ci]=queues[ci].filter(e=>e.reg!==compReg));
+  queues[wallClimbId].push({reg:compReg,joinedAt:Date.now()});
+  apiPostNC({action:'joinQueue',compReg,climbIdx:wallClimbId});
   if(onDone) onDone({success:true});
 }
-
-function apiLeaveQueue(compReg,climbIdx,status,onDone){
-  queues[climbIdx]=queues[climbIdx].filter(e=>e.reg!==compReg);
-  apiPostNC({action:'leaveQueue',compReg,climbIdx,status});
+function apiLeaveQueue(compReg,wallClimbId,status,onDone){
+  queues[wallClimbId]=queues[wallClimbId].filter(e=>e.reg!==compReg);
+  apiPostNC({action:'leaveQueue',compReg,climbIdx:wallClimbId,status});
   if(onDone) onDone({success:true});
 }
 
 // Shared helpers
 function attemptTotal(attempt,ai){if(attempt.isTop)return TOP_SCORE+(TOP_BONUS[ai]||0);return attempt.score+(attempt.positiveMovement?1:0);}
+// ci = wall climb ID (1-based integer)
 function climbBest(reg,ci){const arr=allScores[reg]&&allScores[reg][ci]?allScores[reg][ci]:[];if(!arr.length)return null;let best={idx:0,total:attemptTotal(arr[0],0)};for(let i=1;i<arr.length;i++){const t=attemptTotal(arr[i],i);if(t>best.total)best={idx:i,total:t};}return best;}
 function climbTopped(reg,ci){return(allScores[reg]&&allScores[reg][ci]||[]).some(a=>a.isTop);}
-function totalScore(reg){let t=0;for(let i=0;i<NUM_CLIMBS;i++){const b=climbBest(reg,i);if(b)t+=b.total;}return t;}
+function totalScore(reg){return catClimbs(reg).reduce((t,ci)=>{const b=climbBest(reg,ci);return t+(b?b.total:0);},0);}
 function findCompetitor(reg){return COMPETITORS.find(c=>c.reg===reg);}
-function competitorCurrentClimb(reg){for(let ci=0;ci<NUM_CLIMBS;ci++){if(queues[ci]&&queues[ci].find(e=>e.reg===reg))return ci;}return null;}
+// Returns the wall climb ID a competitor is currently queued for, or null
+function competitorCurrentClimb(reg){return ALL_WALL_CLIMBS.find(ci=>queues[ci]&&queues[ci].find(e=>e.reg===reg))??null;}
 function catClass(cat){for(let k in CAT_KEY){if(cat.includes(k))return CAT_KEY[k];}return 'cat-u21';}
 function formatWait(joinedAt){const mins=Math.floor((Date.now()-joinedAt)/60000);if(mins<1)return 'just now';if(mins===1)return '1 min';return mins+' mins';}
 function totalQueueLength(){return Object.values(queues).reduce((s,q)=>s+q.length,0);}
@@ -659,7 +663,7 @@ function showScan(mode){
 function renderDemoList(){
   document.getElementById('demo-list').innerHTML = COMPETITORS.map(c=>{
     const inClimb = competitorCurrentClimb(c.reg);
-    const queueInfo = inClimb!==null ? `<span class="in-queue-indicator">In Q: Climb ${inClimb+1}</span>` : '';
+    const queueInfo = inClimb!==null ? `<span class="in-queue-indicator">In Q: Climb ${inClimb}</span>` : '';
     return `<button class="demo-competitor-btn" onclick="simulateScan('${c.reg}')">
       <div class="comp-info">
         <span class="comp-name">${c.name}</span>
@@ -702,20 +706,21 @@ function simulateScan(reg){
 function renderClimbGrid(){
   const currentClimb = competitorCurrentClimb(currentCompetitor.reg);
   const warning = document.getElementById('queue-warning');
+  const myClimbs = catClimbs(currentCompetitor.reg); // wall climb IDs for this cat
 
   if(currentClimb!==null){
-    warning.textContent = `⚠ Already in queue for Climb ${currentClimb+1}. Selecting a different climb will remove them from that queue.`;
+    warning.textContent = `⚠ Already in queue for Climb ${currentClimb}. Selecting a different climb will remove them from that queue.`;
     warning.classList.add('show');
   } else {
     warning.classList.remove('show');
   }
 
-  document.getElementById('climb-grid').innerHTML = Array.from({length:NUM_CLIMBS},(_,ci)=>{
-    const qLen = queues[ci].length;
-    const isSelected = selectedClimbForQueue===ci;
-    const isCurrent = currentClimb===ci;
-    return `<button class="climb-select-btn ${isSelected?'selected':''}" onclick="selectClimbForQueue(${ci})">
-      C${ci+1}
+  document.getElementById('climb-grid').innerHTML = myClimbs.map((wallCi, slotIdx)=>{
+    const qLen = (queues[wallCi]||[]).length;
+    const isSelected = selectedClimbForQueue===wallCi;
+    const isCurrent = currentClimb===wallCi;
+    return `<button class="climb-select-btn ${isSelected?'selected':''}" onclick="selectClimbForQueue(${wallCi})">
+      C${wallCi}
       <span class="q-count">${qLen} waiting${isCurrent?' ★':''}</span>
     </button>`;
   }).join('');
@@ -723,8 +728,8 @@ function renderClimbGrid(){
   document.getElementById('confirm-queue-btn').disabled = selectedClimbForQueue===null;
 }
 
-function selectClimbForQueue(ci){
-  selectedClimbForQueue = ci;
+function selectClimbForQueue(wallCi){
+  selectedClimbForQueue = wallCi;
   renderClimbGrid();
 }
 
@@ -732,8 +737,8 @@ function confirmJoinQueue(){
   if(selectedClimbForQueue===null) return;
   const reg = currentCompetitor.reg;
   apiJoinQueue(reg, selectedClimbForQueue, ()=>{
-    const pos = queues[selectedClimbForQueue].length;
-    showToast(`${currentCompetitor.name} → Climb ${selectedClimbForQueue+1} queue (#${pos})`,'info');
+    const pos = (queues[selectedClimbForQueue]||[]).length;
+    showToast(`${currentCompetitor.name} → Climb ${selectedClimbForQueue} queue (#${pos})`,'info');
   });
   activeQueueClimb = selectedClimbForQueue;
   showScreen('queue');
@@ -743,24 +748,24 @@ function confirmJoinQueue(){
 // QUEUE — VIEW
 // ═══════════════════════════════════════════════════════════════
 function renderQueue(){
-  // Tabs
-  document.getElementById('queue-climb-tabs').innerHTML = Array.from({length:NUM_CLIMBS},(_,ci)=>{
-    const len=queues[ci].length;
+  // Tabs — show all wall climbs that have a queue or are used by any category
+  document.getElementById('queue-climb-tabs').innerHTML = ALL_WALL_CLIMBS.map(ci=>{
+    const len=(queues[ci]||[]).length;
     return `<button class="queue-climb-tab ${ci===activeQueueClimb?'active':''}" onclick="switchQueueClimb(${ci})">
-      CLIMB ${ci+1} <span class="tab-badge ${len===0?'empty':''}">${len}</span>
+      CLIMB ${ci} <span class="tab-badge ${len===0?'empty':''}">${len}</span>
     </button>`;
   }).join('');
   renderQueueBody();
 }
 
 function renderQueueBody(){
-  const q = queues[activeQueueClimb];
+  const q = queues[activeQueueClimb]||[];
   const body = document.getElementById('queue-body');
 
   if(q.length===0){
     body.innerHTML=`<div class="queue-empty">
       <div class="queue-empty-icon">🕐</div>
-      <div class="queue-empty-text">NO ONE QUEUING FOR CLIMB ${activeQueueClimb+1}</div>
+      <div class="queue-empty-text">NO ONE QUEUING FOR CLIMB ${activeQueueClimb}</div>
       <div style="color:var(--text-muted);font-size:13px;">Scan a competitor QR to add them</div>
     </div>`;
     return;
@@ -802,15 +807,13 @@ function switchQueueClimb(ci){
 
 function removeFromQueue(ci, reg){
   apiLeaveQueue(reg, ci, 'removed');
-  const comp=findCompetitor(reg);
-  showToast(`${comp.name} removed from queue`,'warn');
+  showToast(`${findCompetitor(reg).name} removed from queue`,'warn');
   renderQueue();
 }
 
 function markDone(ci, reg){
   apiLeaveQueue(reg, ci, 'done');
-  const comp=findCompetitor(reg);
-  showToast(`${comp.name} marked done ✓`);
+  showToast(`${findCompetitor(reg).name} marked done ✓`);
   renderQueue();
 }
 
@@ -818,7 +821,7 @@ function openScoringFromQueue(ci, reg){
   scoringFromQueue=true;
   scoringQueueEntry={climbIdx:ci, reg};
   currentCompetitor=findCompetitor(reg);
-  activeClimbIndex=ci; // open to the relevant climb
+  activeClimbIndex=ci;
   showScreen('scoring');
 }
 
@@ -855,10 +858,11 @@ function renderScoring(){
   document.getElementById('scoring-total').textContent=totalScore(comp.reg);
   document.getElementById('scoring-back-btn').textContent=scoringFromQueue?'← QUEUE':'← HOME';
 
+  const myClimbs = catClimbs(comp.reg); // ordered wall climb IDs for this competitor's category
   const list=document.getElementById('climbs-list');
   list.innerHTML='';
-  for(let ci=0;ci<NUM_CLIMBS;ci++){
-    const attempts=allScores[comp.reg][ci];
+  myClimbs.forEach((ci, slotIdx)=>{
+    const attempts=allScores[comp.reg][ci]||[];
     const best=climbBest(comp.reg,ci);
     const topped=climbTopped(comp.reg,ci);
     const isActive=activeClimbIndex===ci;
@@ -880,7 +884,7 @@ function renderScoring(){
 
     card.innerHTML=`
       <div class="climb-header" onclick="toggleClimb(${ci})">
-        <div class="climb-title">CLIMB ${ci+1}${topped?'<span class="topped-star"> ★ TOP</span>':''}</div>
+        <div class="climb-title">CLIMB ${ci}${topped?'<span class="topped-star"> ★ TOP</span>':''}</div>
         <div class="climb-right">
           <div class="best-score-badge ${bestClass}">${bestDisplay}</div>
           <div class="attempts-pips">${pips}</div>
@@ -892,7 +896,7 @@ function renderScoring(){
         ${renderScoreInput(comp.reg,ci,attempts,topped)}
       </div>`;
     list.appendChild(card);
-  }
+  });
 }
 
 function renderAttemptsTable(reg,ci,attempts,best){
@@ -932,9 +936,9 @@ function renderAttemptsTable(reg,ci,attempts,best){
 function renderScoreInput(reg,ci,attempts,topped){
   if(topped) return `<div class="topped-msg">★ TOPPED — CLIMB COMPLETE</div>`;
   if(attempts.length>=MAX_ATTEMPTS) return `<div class="max-attempts-msg">⚠ Max ${MAX_ATTEMPTS} attempts reached</div>`;
-  const btns=CLIMB_ALLOWED_SCORES[ci].filter(s=>s!==TOP_SCORE)
-    .map(s=>`<button class="score-btn" onclick="addScore('${reg}',${ci},${s})">${s}</button>`).join('');
-  const bonus=TOP_BONUS[attempts.length];
+  const allowed=climbAllowed(ci);
+  const btns=allowed.map(s=>`<button class="score-btn" onclick="addScore('${reg}',${ci},${s})">${s}</button>`).join('');
+  const bonus=TOP_BONUS[attempts.length]||0;
   return `<div class="score-input-section">
     <div class="score-input-label">ATTEMPT ${attempts.length+1} OF ${MAX_ATTEMPTS}</div>
     <div class="score-buttons">${btns}</div>
@@ -942,11 +946,12 @@ function renderScoreInput(reg,ci,attempts,topped){
   </div>`;
 }
 
-function toggleClimb(idx){
-  activeClimbIndex=activeClimbIndex===idx?null:idx;
+function toggleClimb(ci){
+  activeClimbIndex=activeClimbIndex===ci?null:ci;
   renderScoring();
   if(activeClimbIndex!==null) setTimeout(()=>{
     const cards=document.querySelectorAll('.climb-card');
+    const idx=catClimbs(currentCompetitor.reg).indexOf(ci);
     if(cards[idx]) cards[idx].scrollIntoView({behavior:'smooth',block:'nearest'});
   },60);
 }
@@ -955,19 +960,17 @@ function toggleClimb(idx){
 // SCORE ACTIONS
 // ═══════════════════════════════════════════════════════════════
 function addScore(reg,ci,score){
-  const arr=allScores[reg][ci];
-  if(arr.length>=MAX_ATTEMPTS||climbTopped(reg,ci)) return;
-  const ai=arr.length;
+  if((allScores[reg][ci]||[]).length>=MAX_ATTEMPTS||climbTopped(reg,ci)) return;
+  const ai=(allScores[reg][ci]||[]).length;
   apiSubmitScore('ADMIN',reg,ci,ai,score,false,false);
-  showToast(`Climb ${ci+1} · A${ai+1}: ${score} pts`);
+  showToast(`Climb ${ci} · A${ai+1}: ${score} pts`);
   renderScoring();
 }
 
 function addTop(reg,ci){
-  const arr=allScores[reg][ci];
-  if(arr.length>=MAX_ATTEMPTS||climbTopped(reg,ci)) return;
-  const ai=arr.length;
-  const bonus=TOP_BONUS[ai];
+  if((allScores[reg][ci]||[]).length>=MAX_ATTEMPTS||climbTopped(reg,ci)) return;
+  const ai=(allScores[reg][ci]||[]).length;
+  const bonus=TOP_BONUS[ai]||0;
   apiSubmitScore('ADMIN',reg,ci,ai,TOP_SCORE,false,true);
   showToast(`★ TOPPED! 60 + ${bonus} = ${TOP_SCORE+bonus}`,'top');
   renderScoring();
@@ -976,9 +979,8 @@ function addTop(reg,ci){
 function togglePM(reg,ci,ai){
   const a=allScores[reg][ci][ai];
   if(a.isTop) return;
-  const newPM=!a.positiveMovement;
-  apiSubmitScore('ADMIN',reg,ci,ai,a.score,newPM,false);
-  showToast(newPM?'+PM added':'PM removed');
+  apiSubmitScore('ADMIN',reg,ci,ai,a.score,!a.positiveMovement,false);
+  showToast(!a.positiveMovement?'+PM added':'PM removed');
   renderScoring();
 }
 
@@ -996,14 +998,14 @@ function openEditModal(reg,ci,ai){
   const a=allScores[reg][ci][ai];
   editState={reg,climbIdx:ci,attemptIdx:ai,score:a.score,pm:a.positiveMovement,isTop:a.isTop};
   const comp=findCompetitor(reg);
-  document.getElementById('modal-title').textContent=`Edit Climb ${ci+1} · Attempt ${ai+1}`;
+  document.getElementById('modal-title').textContent=`Edit Climb ${ci} · Attempt ${ai+1}`;
   document.getElementById('modal-subtitle').textContent=comp.name+' · '+reg;
   refreshModal();
   document.getElementById('edit-modal').classList.add('open');
 }
 
 function refreshModal(){
-  const allowed=CLIMB_ALLOWED_SCORES[editState.climbIdx].filter(s=>s!==TOP_SCORE);
+  const allowed=climbAllowed(editState.climbIdx);
   document.getElementById('modal-score-btns').innerHTML=allowed.map(s=>
     `<button class="modal-score-btn ${!editState.isTop&&editState.score===s?'selected':''}" onclick="selectModalScore(${s})">${s}</button>`
   ).join('');
@@ -1038,9 +1040,12 @@ function handleModalOverlayClick(e){if(e.target===document.getElementById('edit-
 // LEADERBOARD
 // ═══════════════════════════════════════════════════════════════
 function renderLeaderboard(){
-  document.getElementById('category-tabs').innerHTML=CATEGORIES.map(cat=>
+  // Build category list from CATEGORY_CLIMBS keys (only categories with climbs assigned)
+  const cats=Object.keys(CATEGORY_CLIMBS).filter(cat=>COMPETITORS.some(c=>c.category===cat));
+  document.getElementById('category-tabs').innerHTML=cats.map(cat=>
     `<button class="cat-tab ${cat===currentLeaderboardCat?'active':''}" onclick="switchLeaderboardCat('${cat}')">${cat}</button>`
   ).join('');
+  const myCats=CATEGORY_CLIMBS[currentLeaderboardCat]||[];
   const ranked=COMPETITORS.filter(c=>c.category===currentLeaderboardCat)
     .map(c=>({...c,total:totalScore(c.reg)}))
     .sort((a,b)=>b.total-a.total);
@@ -1048,12 +1053,12 @@ function renderLeaderboard(){
     ?`<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:40px;">No competitors in this category</td></tr>`
     :ranked.map((c,idx)=>{
       const rc=['rank-1','rank-2','rank-3'][idx]||'';
-      const mini=Array.from({length:NUM_CLIMBS},(_,ci)=>{
+      const mini=myCats.map(ci=>{
         const best=climbBest(c.reg,ci);
         const topped=climbTopped(c.reg,ci);
         const cls=topped?'topped':(best?'scored':'');
         const val=best?(topped?`★${best.total}`:best.total):'—';
-        return `<span class="climb-mini ${cls}">C${ci+1}:${val}</span>`;
+        return `<span class="climb-mini ${cls}">C${ci}:${val}</span>`;
       }).join('');
       return `<tr>
         <td class="rank-cell ${rc}">${idx+1}</td>
@@ -1096,7 +1101,7 @@ function onPollRefresh(){
 showLoadingScreen();
 initApp(()=>{
   hideLoadingScreen();
-  currentLeaderboardCat=CATEGORIES[0];
+  currentLeaderboardCat=Object.keys(CATEGORY_CLIMBS)[0]||'';
   renderDemoList();
 });
 </script>

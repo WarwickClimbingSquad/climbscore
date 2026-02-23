@@ -234,6 +234,7 @@
 <script>
 
 
+
 // ═══════════════════════════════════════════════════════════════
 // CONFIG — your Apps Script web app URL
 // ═══════════════════════════════════════════════════════════════
@@ -242,13 +243,19 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzADP0CKWsw5OhiqSW2V73h
 // ═══════════════════════════════════════════════════════════════
 // API CLIENT — JSONP read-only (competitor view)
 // ═══════════════════════════════════════════════════════════════
-let CLIMB_ALLOWED_SCORES=[],TOP_SCORE=60,MAX_ATTEMPTS=5,TOP_BONUS=[4,3,2,1,0],NUM_CLIMBS=8;
+let CLIMB_SCORES={}, CATEGORY_CLIMBS={}, ALL_WALL_CLIMBS=[];
+let TOP_SCORE=60, MAX_ATTEMPTS=5, TOP_BONUS=[4,3,2,1,0];
 let COMPETITORS=[];
 const CAT_KEY={'U13':'cat-u13','U15':'cat-u15','U17':'cat-u17','U21':'cat-u21'};
-let allScores={},queues={};
+let allScores={}, queues={};
 const POLL_INTERVAL_MS=10000;
-let pollTimer=null;
-let _cbIdx=0;
+let pollTimer=null, _cbIdx=0;
+
+function catClimbs(reg){
+  const comp=COMPETITORS.find(c=>c.reg===reg);
+  if(!comp) return [];
+  return CATEGORY_CLIMBS[comp.category]||[];
+}
 
 function jsonpGet(params){
   return new Promise((resolve,reject)=>{
@@ -270,10 +277,12 @@ async function initApp(onReady){
   try{
     const cfg=await jsonpGet({action:'getConfig'});
     if(!cfg.success){showFatalError(cfg.error||'Config load failed');return;}
-    CLIMB_ALLOWED_SCORES=cfg.climbScores;TOP_SCORE=cfg.topScore;MAX_ATTEMPTS=cfg.maxAttempts;
-    TOP_BONUS=cfg.topBonus;NUM_CLIMBS=cfg.numClimbs;COMPETITORS=cfg.competitors;
-    COMPETITORS.forEach(c=>{allScores[c.reg]={};for(let i=0;i<NUM_CLIMBS;i++)allScores[c.reg][i]=[];});
-    for(let i=0;i<NUM_CLIMBS;i++)queues[i]=[];
+    CLIMB_SCORES=cfg.climbScores; CATEGORY_CLIMBS=cfg.categoryClimbs; ALL_WALL_CLIMBS=cfg.allWallClimbs;
+    TOP_SCORE=cfg.topScore; MAX_ATTEMPTS=cfg.maxAttempts;
+    TOP_BONUS=cfg.topBonus||Array.from({length:MAX_ATTEMPTS},(_,i)=>Math.max(0,MAX_ATTEMPTS-1-i));
+    COMPETITORS=cfg.competitors;
+    COMPETITORS.forEach(c=>{allScores[c.reg]={};ALL_WALL_CLIMBS.forEach(ci=>allScores[c.reg][ci]=[]);});
+    ALL_WALL_CLIMBS.forEach(ci=>queues[ci]=[]);
     await refreshAll();
     onReady();
     startPolling();
@@ -285,34 +294,40 @@ async function initApp(onReady){
 
 async function refreshAll(cb){
   try{
-    const [sr,qr]=await Promise.all([
-      jsonpGet({action:'getAllScores'}),
-      jsonpGet({action:'getQueues'})
-    ]);
+    const [sr,qr]=await Promise.all([jsonpGet({action:'getAllScores'}),jsonpGet({action:'getQueues'})]);
     if(sr.success) mergeScores(sr.scores);
     if(qr.success) mergeQueues(qr.queues);
   }catch(e){console.warn('Refresh failed',e);}
   if(cb) cb();
 }
 
-function mergeScores(s){for(const reg in s){if(!allScores[reg])allScores[reg]={};for(let i=0;i<NUM_CLIMBS;i++)allScores[reg][i]=s[reg][i]||[];}}
-function mergeQueues(q){for(let i=0;i<NUM_CLIMBS;i++)queues[i]=q[i]||[];}
+function mergeScores(s){
+  for(const reg in s){
+    if(!allScores[reg])allScores[reg]={};
+    ALL_WALL_CLIMBS.forEach(ci=>allScores[reg][ci]=s[reg][ci]||[]);
+  }
+}
+function mergeQueues(q){ALL_WALL_CLIMBS.forEach(ci=>queues[ci]=q[ci]||[]);}
 function startPolling(){
   if(pollTimer)clearInterval(pollTimer);
-  pollTimer=setInterval(async()=>{
-    await refreshAll();
-    if(typeof onPollRefresh==='function')onPollRefresh();
-  },POLL_INTERVAL_MS);
+  pollTimer=setInterval(async()=>{await refreshAll();if(typeof onPollRefresh==='function')onPollRefresh();},POLL_INTERVAL_MS);
 }
 
 // Helpers
 function attemptTotal(a,ai){if(a.isTop)return TOP_SCORE+(TOP_BONUS[ai]||0);return a.score+(a.positiveMovement?1:0);}
 function climbBest(reg,ci){const arr=allScores[reg]&&allScores[reg][ci]?allScores[reg][ci]:[];if(!arr.length)return null;let best={idx:0,total:attemptTotal(arr[0],0)};for(let i=1;i<arr.length;i++){const t=attemptTotal(arr[i],i);if(t>best.total)best={idx:i,total:t};}return best;}
 function climbTopped(reg,ci){return(allScores[reg]&&allScores[reg][ci]||[]).some(a=>a.isTop);}
-function totalScore(reg){let t=0;for(let i=0;i<NUM_CLIMBS;i++){const b=climbBest(reg,i);if(b)t+=b.total;}return t;}
+function totalScore(reg){return catClimbs(reg).reduce((t,ci)=>{const b=climbBest(reg,ci);return t+(b?b.total:0);},0);}
 function findComp(reg){return COMPETITORS.find(c=>c.reg===reg);}
 function catClass(cat){for(let k in CAT_KEY){if(cat.includes(k))return CAT_KEY[k];}return 'cat-u21';}
-function compQueueInfo(reg){for(let ci=0;ci<NUM_CLIMBS;ci++){const e=queues[ci]&&queues[ci].find(e=>e.reg===reg);if(e)return{climbIdx:ci,pos:queues[ci].indexOf(e)+1,total:queues[ci].length};}return null;}
+function compQueueInfo(reg){
+  for(const ci of ALL_WALL_CLIMBS){
+    const q=queues[ci]||[];
+    const e=q.find(e=>e.reg===reg);
+    if(e)return{climbIdx:ci,pos:q.indexOf(e)+1,total:q.length};
+  }
+  return null;
+}
 function initials(name){return name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();}
 function getRanked(cat){return COMPETITORS.filter(c=>c.category===cat).map(c=>({...c,total:totalScore(c.reg)})).sort((a,b)=>b.total-a.total);}
 
@@ -403,17 +418,17 @@ function selectComp(reg){
 function renderResults(){
   if(!currentComp)return;
   const comp=currentComp;
+  const myClimbs=catClimbs(comp.reg); // ordered wall climb IDs
   const total=totalScore(comp.reg);
   const ranked=getRanked(comp.category);
   const rankIdx=ranked.findIndex(c=>c.reg===comp.reg);
   const rank=rankIdx+1;
-  const climbsDone=Array.from({length:NUM_CLIMBS},(_,i)=>climbBest(comp.reg,i)).filter(Boolean).length;
-  const attRem=Array.from({length:NUM_CLIMBS},(_,i)=>{
-    if(climbTopped(comp.reg,i))return 0;
-    return MAX_ATTEMPTS-allScores[comp.reg][i].length;
-  }).reduce((s,v)=>s+v,0);
+  const climbsDone=myClimbs.filter(ci=>climbBest(comp.reg,ci)).length;
+  const attRem=myClimbs.reduce((s,ci)=>{
+    if(climbTopped(comp.reg,ci))return s;
+    return s+MAX_ATTEMPTS-(allScores[comp.reg][ci]||[]).length;
+  },0);
 
-  // Header
   document.getElementById('results-avatar').textContent=initials(comp.name);
   document.getElementById('results-name').textContent=comp.name;
   document.getElementById('results-reg').textContent=comp.reg+' · '+comp.category;
@@ -421,26 +436,23 @@ function renderResults(){
   catBadge.textContent=comp.category;catBadge.className='cat-badge '+catClass(comp.category);
   document.getElementById('results-total').textContent=total;
   document.getElementById('results-rank').textContent=rank+'/'+(ranked.length);
-  document.getElementById('results-climbs-done').textContent=climbsDone+'/'+NUM_CLIMBS;
+  document.getElementById('results-climbs-done').textContent=climbsDone+'/'+myClimbs.length;
 
-  // Rank colour
   const rs=document.getElementById('rank-stat');
   rs.className='stat-card'+(rank===1?' rank-1':rank===2?' rank-2':rank===3?' rank-3':' rank-other');
 
-  // Queue status
   const qi=compQueueInfo(comp.reg);
   const qBar=document.getElementById('queue-status-bar');
   if(qi){
     qBar.style.display='flex';
-    document.getElementById('queue-status-title').textContent=`In queue for Climb ${qi.climbIdx+1}`;
+    document.getElementById('queue-status-title').textContent=`In queue for Climb ${qi.climbIdx}`;
     document.getElementById('queue-status-detail').textContent=`Position ${qi.pos} of ${qi.total}`;
   } else {
     qBar.style.display='none';
   }
 
-  // Climbs list
-  document.getElementById('climbs-results-list').innerHTML=Array.from({length:NUM_CLIMBS},(_,ci)=>{
-    const attempts=allScores[comp.reg][ci];
+  document.getElementById('climbs-results-list').innerHTML=myClimbs.map((ci,slotIdx)=>{
+    const attempts=allScores[comp.reg][ci]||[];
     const best=climbBest(comp.reg,ci);
     const topped=climbTopped(comp.reg,ci);
     const attRemaining=topped?0:MAX_ATTEMPTS-attempts.length;
@@ -457,10 +469,8 @@ function renderResults(){
     else{statusText='Not attempted';bestScore='—';bsc='none';}
 
     const attText=attempts.length>0?`${attempts.length} attempt${attempts.length!==1?'s':''} · Best: ${best?best.total:'—'}`:(attRemaining>0?`${attRemaining} attempt${attRemaining!==1?'s':''} remaining`:'');
-
     const remPill=(!topped&&attRemaining>0&&attempts.length>0)?`<div class="attempts-remaining-pill">⏱ ${attRemaining} attempt${attRemaining!==1?'s':''} left</div>`:'';
 
-    // Attempts detail
     let attDetail='<div class="no-attempts-msg">No attempts recorded yet</div>';
     if(attempts.length>0){
       attDetail=attempts.map((a,ai)=>{
@@ -487,7 +497,7 @@ function renderResults(){
 
     return`<div class="${cc}" id="climb-card-${ci}">
       <div class="climb-result-header" onclick="toggleClimb(${ci})">
-        <div class="climb-num">${ci+1}</div>
+        <div class="climb-num">${ci}</div>
         <div class="climb-info">
           <div class="climb-status-text">${statusText}</div>
           <div class="climb-attempts-text">${attText}</div>
@@ -511,6 +521,7 @@ function toggleClimb(ci){
 function renderLeaderboard(){
   if(!currentComp)return;
   const cat=currentComp.category;
+  const myClimbs=CATEGORY_CLIMBS[cat]||[];
   document.getElementById('lb-category-label').textContent=cat;
   const catBadge=document.getElementById('lb-cat-badge');
   catBadge.textContent=cat;catBadge.className='cat-badge '+catClass(cat);
@@ -520,13 +531,12 @@ function renderLeaderboard(){
     const isMe=c.reg===currentComp.reg;
     const rank=idx+1;
     const rc=rank===1?'r1':rank===2?'r2':rank===3?'r3':'';
-    const mini=Array.from({length:NUM_CLIMBS},(_,ci)=>{
+    const mini=myClimbs.map(ci=>{
       const best=climbBest(c.reg,ci);const topped=climbTopped(c.reg,ci);
       const cls=topped?'t':(best?'s':'');
       const val=best?(topped?`★${best.total}`:best.total):'—';
-      // Only show actual scores for own entry
-      if(isMe)return`<span class="lb-mini ${cls} me-mini">C${ci+1}:${val}</span>`;
-      return`<span class="lb-mini ${cls}">C${ci+1}:${best?'✓':'—'}</span>`;
+      if(isMe)return`<span class="lb-mini ${cls} me-mini">C${ci}:${val}</span>`;
+      return`<span class="lb-mini ${cls}">C${ci}:${best?'✓':'—'}</span>`;
     }).join('');
 
     let nameHtml,scoreHtml;
