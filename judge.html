@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1b2a">
+<script>
+// Apps Script strips <meta> tags — re-inject viewport immediately
+(function(){
+  var m=document.querySelector('meta[name=viewport]');
+  if(!m){m=document.createElement('meta');m.name='viewport';document.head.appendChild(m);}
+  m.content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+})();
+</script>
+<title>ClimbScore — Judge</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1b2a;--surface:#1a2e42;--surface2:#243d54;--border:#2e4a62;
+    --accent:#00b4d8;--accent2:#90e0ef;--success:#2ecc71;--warning:#f39c12;
+    --danger:#e74c3c;--top-color:#ffd700;--pm-color:#a78bfa;
+    --text:#f0f4f8;--text-muted:#7a9ab5;
+    --u13:#ff6b9d;--u15:#c77dff;--u17:#4ecdc4;--u21:#ff6b35;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+  .screen{display:none;min-height:100vh;flex-direction:column;}
+  .screen.active{display:flex;}
+
+  /* HEADER */
+  .app-header{background:var(--surface);border-bottom:2px solid var(--accent);padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+  .logo{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--accent);letter-spacing:1px;flex:1;}
+  .judge-chip{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;background:var(--surface2);border:1px solid var(--border);padding:5px 10px;border-radius:20px;color:var(--accent2);white-space:nowrap;}
+  .back-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;font-family:'Barlow Condensed',sans-serif;font-weight:600;cursor:pointer;}
+
+  /* BOTTOM NAV */
+  .bottom-nav{background:var(--surface);border-top:2px solid var(--border);display:flex;padding:8px 0 env(safe-area-inset-bottom,8px);}
+  .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px;cursor:pointer;background:none;border:none;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;position:relative;}
+  .nav-btn.active{color:var(--accent);}
+  .nav-icon{font-size:22px;}
+  .nav-badge{position:absolute;top:4px;right:calc(50% - 18px);background:var(--danger);color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;}
+
+  /* BUTTONS */
+  .btn-primary{background:var(--accent);color:#000;border:none;padding:18px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;letter-spacing:1px;cursor:pointer;width:100%;transition:transform 0.1s;}
+  .btn-primary:active{transform:scale(0.97);}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:2px solid var(--border);padding:16px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:600;letter-spacing:0.5px;cursor:pointer;width:100%;}
+  .btn-success{background:var(--success);color:white;border:none;padding:18px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;cursor:pointer;width:100%;}
+  .btn-success:active{transform:scale(0.97);}
+  .btn-cancel{background:transparent;color:var(--text-muted);border:2px solid var(--border);padding:14px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:600;cursor:pointer;width:100%;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--success);color:white;padding:12px 24px;border-radius:30px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;z-index:9999;transition:transform 0.3s;white-space:nowrap;pointer-events:none;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.warn{background:var(--warning);color:#000;}
+  .toast.top{background:var(--top-color);color:#000;}
+  .toast.info{background:var(--accent2);color:#000;}
+
+  /* CAT BADGES */
+  .cat-badge{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+  .cat-u13{background:#ff6b9d;color:#000;}.cat-u15{background:#c77dff;color:#fff;}
+  .cat-u17{background:#4ecdc4;color:#000;}.cat-u21{background:#ff6b35;color:#fff;}
+
+  /* ── LOGIN SCREEN ── */
+  #screen-login{justify-content:flex-start;align-items:stretch;padding:0;}
+  .login-hero{background:linear-gradient(160deg,var(--surface) 0%,var(--bg) 100%);padding:40px 24px 24px;text-align:center;border-bottom:2px solid var(--accent);}
+  .login-hero h1{font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;color:var(--accent);letter-spacing:2px;line-height:1;}
+  .login-hero p{color:var(--text-muted);font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-top:6px;}
+  .login-hero .role-tag{display:inline-block;margin-top:12px;background:rgba(0,180,216,0.15);border:1px solid var(--accent);color:var(--accent);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:1px;}
+  .judge-list{flex:1;overflow-y:auto;padding:16px;}
+  .judge-list-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;text-align:center;}
+  .judge-btn{display:flex;align-items:center;gap:14px;background:var(--surface);border:2px solid var(--border);color:var(--text);padding:16px;border-radius:12px;margin-bottom:10px;cursor:pointer;width:100%;transition:border-color 0.2s;}
+  .judge-btn:active{border-color:var(--accent);}
+  .judge-avatar{width:44px;height:44px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--accent);flex-shrink:0;}
+  .judge-btn-name{font-size:18px;font-weight:600;text-align:left;}
+  .judge-btn-id{font-size:12px;color:var(--text-muted);}
+  .judge-assigned-chip{margin-left:auto;font-size:11px;color:var(--accent2);background:rgba(144,224,239,0.1);border:1px solid var(--accent2);padding:3px 8px;border-radius:10px;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;font-weight:700;}
+
+  /* ── SETUP SCREEN ── */
+  #screen-setup{align-items:stretch;}
+  .setup-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px;}
+  .setup-section-label{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+  .category-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .cat-select-btn{background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:14px 10px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;cursor:pointer;text-align:center;transition:all 0.15s;}
+  .cat-select-btn.selected{border-color:var(--accent);background:rgba(0,180,216,0.1);color:var(--accent);}
+  .climb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .climb-select-btn{background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:14px 6px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;cursor:pointer;text-align:center;transition:all 0.15s;}
+  .climb-select-btn.selected{border-color:var(--accent);background:rgba(0,180,216,0.1);color:var(--accent);}
+  .climb-select-btn .q-count{font-size:10px;font-family:'Barlow',sans-serif;font-weight:400;color:var(--text-muted);display:block;margin-top:2px;}
+  .setup-confirm-btn{background:var(--accent);color:#000;border:none;padding:20px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;cursor:pointer;width:100%;transition:transform 0.1s;}
+  .setup-confirm-btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .current-assignment-bar{background:rgba(0,180,216,0.1);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--accent2);text-align:center;}
+
+  /* ── JUDGE HOME ── */
+  #screen-judge-home{align-items:stretch;}
+  .judge-home-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;}
+  .judge-assignment-card{background:rgba(0,180,216,0.08);border:2px solid var(--accent);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;}
+  .assignment-detail{font-family:'Barlow Condensed',sans-serif;}
+  .assignment-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
+  .assignment-value{font-size:22px;font-weight:800;color:var(--accent);line-height:1.1;}
+  .judge-home-actions{flex:1;display:flex;flex-direction:column;gap:12px;padding:16px;}
+  .action-card{background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:20px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:border-color 0.2s;}
+  .action-card:active{border-color:var(--accent);}
+  .action-icon{font-size:36px;flex-shrink:0;}
+  .action-text-block .action-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;letter-spacing:0.5px;}
+  .action-text-block .action-sub{font-size:13px;color:var(--text-muted);margin-top:2px;}
+  .action-badge{margin-left:auto;background:var(--danger);color:white;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;padding:6px 12px;border-radius:10px;flex-shrink:0;}
+  .action-badge.empty{background:var(--surface2);color:var(--text-muted);}
+
+  /* SCAN CAMERA */
+  .camera-wrap{position:relative;width:100%;max-width:360px;margin:0 auto;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:1;}
+  .camera-wrap video{width:100%;height:100%;object-fit:cover;display:block;}
+  .camera-wrap canvas{display:none;}
+  .scan-corner{position:absolute;width:28px;height:28px;border-color:var(--accent);border-style:solid;border-width:0;}
+  .scan-corner.tl{top:12px;left:12px;border-top-width:3px;border-left-width:3px;border-radius:4px 0 0 0;}
+  .scan-corner.tr{top:12px;right:12px;border-top-width:3px;border-right-width:3px;border-radius:0 4px 0 0;}
+  .scan-corner.bl{bottom:12px;left:12px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 4px;}
+  .scan-corner.br{bottom:12px;right:12px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 4px 0;}
+  .scan-line{position:absolute;left:12px;right:12px;height:2px;background:var(--accent);opacity:0.7;animation:scanline 2s ease-in-out infinite;}
+  @keyframes scanline{0%{top:12px}100%{top:calc(100% - 14px)}}
+  .camera-status{font-size:13px;color:var(--text-muted);text-align:center;padding:8px 16px;}
+  .camera-error{background:rgba(231,76,60,0.1);border:1px solid var(--danger);border-radius:10px;padding:12px;font-size:13px;color:var(--danger);text-align:center;margin:0 16px;display:none;}
+  .camera-btn{background:var(--accent);color:#000;border:none;padding:14px 28px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;cursor:pointer;margin:0 auto;display:block;}
+  .scan-area{width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 16px 0;}
+  .scan-demo-section{width:100%;padding:0 16px 24px;overflow-y:auto;flex:1;}
+  .scan-demo-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;text-align:center;margin-bottom:10px;}
+  .demo-comp-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:10px;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:8px;gap:8px;}
+  .in-queue-chip{font-size:11px;color:var(--accent2);background:rgba(144,224,239,0.1);padding:2px 7px;border-radius:10px;white-space:nowrap;}
+  .already-here-chip{font-size:11px;color:var(--success);background:rgba(46,204,113,0.1);padding:2px 7px;border-radius:10px;white-space:nowrap;}
+
+  /* ── CONFIRM ADD TO QUEUE ── */
+  #screen-judge-confirm{align-items:stretch;}
+  .confirm-body{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px;}
+  .competitor-card{background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:20px;text-align:center;}
+  .competitor-card .reg-number{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:800;color:var(--accent);line-height:1;}
+  .competitor-card .comp-name{font-size:22px;font-weight:600;margin-top:6px;}
+  .competitor-card .comp-cat{margin-top:10px;display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;padding:5px 14px;border-radius:20px;}
+  .queue-target-card{background:rgba(0,180,216,0.08);border:2px solid var(--accent);border-radius:12px;padding:14px 16px;text-align:center;}
+  .queue-target-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
+  .queue-target-value{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--accent);margin-top:2px;}
+  .queue-target-pos{font-size:13px;color:var(--text-muted);margin-top:4px;}
+  .already-queued-warning{background:rgba(243,156,18,0.1);border:1px solid var(--warning);border-radius:10px;padding:12px;font-size:13px;color:var(--warning);text-align:center;}
+
+  /* ── WRONG CATEGORY ERROR ── */
+  #screen-judge-wrong-cat{align-items:stretch;justify-content:flex-start;}
+  .wrong-cat-body{flex:1;padding:24px;display:flex;flex-direction:column;align-items:center;gap:20px;}
+  .wrong-cat-icon{font-size:72px;margin-top:16px;}
+  .wrong-cat-title{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;color:var(--danger);letter-spacing:1px;text-align:center;}
+  .wrong-cat-message{font-size:15px;color:var(--text-muted);text-align:center;line-height:1.6;max-width:300px;}
+  .wrong-cat-comp-card{background:var(--surface);border:2px solid var(--danger);border-radius:14px;padding:20px;width:100%;text-align:center;}
+  .wrong-cat-comp-card .comp-reg{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;color:var(--danger);line-height:1;}
+  .wrong-cat-comp-card .comp-name{font-size:20px;font-weight:600;margin-top:6px;}
+  .wrong-cat-cats{display:flex;flex-direction:column;gap:8px;width:100%;}
+  .wrong-cat-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:10px;padding:12px 16px;}
+  .wrong-cat-row-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
+  .wrong-cat-row-value{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;}
+  .wrong-cat-row-value.danger{color:var(--danger);}
+  .wrong-cat-row-value.good{color:var(--accent);}
+  .wrong-cat-actions{display:flex;flex-direction:column;gap:10px;width:100%;margin-top:auto;}
+
+  /* ── QUEUE SCREEN ── */
+  #screen-judge-queue{align-items:stretch;}
+  .queue-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+  .queue-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-muted);padding:40px;text-align:center;}
+  .queue-empty-icon{font-size:48px;opacity:0.3;}
+  .queue-empty-text{font-family:'Barlow Condensed',sans-serif;font-size:20px;letter-spacing:1px;}
+  .queue-entry{background:var(--surface);border:2px solid var(--border);border-radius:12px;overflow:hidden;}
+  .queue-entry.is-next{border-color:var(--accent);}
+  .next-banner{background:var(--accent);color:#000;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;padding:7px;letter-spacing:1px;}
+  .queue-entry-header{display:flex;align-items:center;gap:12px;padding:14px 16px;}
+  .queue-pos{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:var(--text-muted);width:34px;text-align:center;flex-shrink:0;}
+  .queue-entry.is-next .queue-pos{color:var(--accent);}
+  .queue-comp-info{flex:1;}
+  .queue-comp-name{font-size:18px;font-weight:600;}
+  .queue-comp-meta{display:flex;align-items:center;gap:7px;margin-top:4px;flex-wrap:wrap;}
+  .queue-reg{font-size:12px;color:var(--text-muted);}
+  .queue-wait{font-size:12px;color:var(--text-muted);}
+  .queue-remove-btn{background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:4px 8px;flex-shrink:0;}
+  .queue-entry-actions{display:flex;gap:8px;padding:0 12px 12px;}
+  .queue-score-btn{flex:2;background:var(--success);border:none;color:white;padding:14px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;cursor:pointer;}
+  .queue-score-btn:active{opacity:0.85;}
+  .queue-done-btn{flex:1;background:var(--surface2);border:2px solid var(--border);color:var(--text-muted);padding:14px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:600;cursor:pointer;}
+
+  /* ── SCORING SCREEN ── */
+  #screen-judge-scoring{align-items:stretch;}
+  .scoring-header-info{background:var(--surface);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .scoring-competitor-name{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;}
+  .scoring-total .total-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
+  .scoring-total .total-value{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:var(--accent);line-height:1;text-align:right;}
+  .climbs-list{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;}
+  .climb-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;overflow:hidden;}
+  .climb-card.has-score{border-color:var(--success);}
+  .climb-card.is-topped{border-color:var(--top-color);}
+  .climb-card.is-active{border-color:var(--accent);}
+  .climb-header{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;}
+  .climb-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .topped-star{color:var(--top-color);font-size:14px;}
+  .climb-right{display:flex;align-items:center;gap:10px;}
+  .best-score-badge{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--success);}
+  .best-score-badge.topped{color:var(--top-color);}
+  .attempts-pips{display:flex;gap:4px;}
+  .pip{width:8px;height:8px;border-radius:50%;background:var(--border);}
+  .pip.used{background:var(--accent2);}.pip.best{background:var(--success);}.pip.top{background:var(--top-color);}
+  .climb-expand{display:none;padding:0 12px 16px;}
+  .climb-card.is-active .climb-expand{display:block;}
+  .attempts-section-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
+  .attempts-table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+  .attempts-table th{font-size:11px;color:var(--text-muted);text-transform:uppercase;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);}
+  .attempts-table td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .attempt-row.is-best td{background:rgba(46,204,113,0.07);}
+  .attempt-row.is-topped-row td{background:rgba(255,215,0,0.07);}
+  .attempt-num-cell{font-family:'Barlow Condensed',sans-serif;font-size:15px;color:var(--text-muted);width:36px;}
+  .attempt-score-cell{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;}
+  .top-label{font-size:11px;color:var(--top-color);font-family:'Barlow',sans-serif;font-weight:600;display:block;line-height:1;}
+  .attempt-pm-cell{text-align:center;}
+  .pm-toggle{background:var(--surface2);border:2px solid var(--border);color:var(--text-muted);width:50px;height:44px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;}
+  .pm-toggle.active{background:var(--pm-color);border-color:var(--pm-color);color:white;}
+  .pm-toggle:disabled{opacity:0.25;cursor:not-allowed;}
+  .attempt-total-cell{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;text-align:right;}
+  .attempt-total-cell.is-best-val{color:var(--success);}
+  .attempt-total-cell.is-top-val{color:var(--top-color);}
+  .bonus-chip{font-size:11px;border-radius:4px;padding:1px 5px;font-weight:600;display:block;text-align:right;}
+  .bonus-chip.top-bonus{background:rgba(255,215,0,0.15);color:var(--top-color);}
+  .bonus-chip.pm-bonus{background:rgba(167,139,250,0.15);color:var(--pm-color);}
+  .attempt-actions-cell{width:60px;text-align:right;}
+  .edit-attempt-btn,.del-attempt-btn{background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:4px;}
+  .score-input-section{margin-top:4px;}
+  .score-input-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
+  .score-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .score-btn{flex:1;min-width:52px;background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:16px 6px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;cursor:pointer;transition:transform 0.1s;}
+  .score-btn:active{transform:scale(0.93);background:var(--accent);border-color:var(--accent);color:#000;}
+  .top-btn{width:100%;background:rgba(255,215,0,0.1);border:2px solid var(--top-color);color:var(--top-color);padding:18px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;cursor:pointer;transition:transform 0.1s;}
+  .top-btn:active{transform:scale(0.97);}
+  .max-attempts-msg{color:var(--warning);font-size:14px;text-align:center;padding:10px;}
+  .topped-msg{color:var(--top-color);font-size:18px;font-family:'Barlow Condensed',sans-serif;font-weight:700;text-align:center;padding:10px;}
+  .done-scoring-bar{padding:12px;background:var(--surface);border-top:1px solid var(--border);}
+  .done-scoring-btn{width:100%;background:var(--accent);border:none;color:#000;padding:16px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;cursor:pointer;}
+
+  /* EDIT MODAL */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:flex-end;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal-sheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px;max-height:85vh;overflow-y:auto;}
+  .modal-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;margin-bottom:4px;}
+  .modal-subtitle{color:var(--text-muted);font-size:13px;margin-bottom:20px;}
+  .modal-section-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
+  .modal-score-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .modal-score-btn{flex:1;min-width:52px;background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:14px 6px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;cursor:pointer;}
+  .modal-score-btn.selected{background:var(--accent);border-color:var(--accent);color:#000;}
+  .modal-top-btn{width:100%;background:rgba(255,215,0,0.1);border:2px solid var(--border);color:var(--text-muted);padding:14px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;cursor:pointer;margin-bottom:16px;}
+  .modal-top-btn.selected{background:rgba(255,215,0,0.2);border-color:var(--top-color);color:var(--top-color);}
+  .modal-pm-row{display:flex;align-items:center;gap:12px;background:var(--surface2);border-radius:12px;padding:14px 16px;margin-bottom:20px;}
+  .modal-pm-label{flex:1;}
+  .modal-pm-label strong{display:block;font-size:16px;}
+  .modal-pm-label span{font-size:12px;color:var(--text-muted);}
+  .modal-pm-toggle{background:var(--surface);border:2px solid var(--border);color:var(--text-muted);width:60px;height:40px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;}
+  .modal-pm-toggle.active{background:var(--pm-color);border-color:var(--pm-color);color:white;}
+  .modal-pm-toggle:disabled{opacity:0.3;cursor:not-allowed;}
+  .modal-total-preview{text-align:center;margin-bottom:20px;color:var(--text-muted);font-size:14px;}
+  .modal-total-preview span{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;color:var(--accent2);display:block;}
+  .modal-actions{display:flex;gap:10px;}
+  .modal-save-btn{flex:2;background:var(--success);border:none;color:white;padding:18px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;cursor:pointer;}
+  .modal-cancel-btn{flex:1;background:var(--surface2);border:2px solid var(--border);color:var(--text);padding:18px;border-radius:12px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:600;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-sheet">
+    <div class="modal-title" id="modal-title">Edit Attempt</div>
+    <div class="modal-subtitle" id="modal-subtitle"></div>
+    <div class="modal-section-label">SELECT SCORE</div>
+    <div class="modal-score-btns" id="modal-score-btns"></div>
+    <button class="modal-top-btn" id="modal-top-btn" onclick="selectModalTop()">★ TOP</button>
+    <div class="modal-pm-row">
+      <div class="modal-pm-label"><strong>Positive Movement</strong><span>+1 point added to attempt</span></div>
+      <button class="modal-pm-toggle" id="modal-pm-toggle" onclick="toggleModalPM()">+PM</button>
+    </div>
+    <div class="modal-total-preview">Total for this attempt<span id="modal-total-preview">—</span></div>
+    <div class="modal-actions">
+      <button class="modal-save-btn" onclick="saveEdit()">✓ SAVE CHANGES</button>
+      <button class="modal-cancel-btn" onclick="closeModal()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOGIN ══ -->
+<div class="screen active" id="screen-login">
+  <div class="login-hero">
+    <h1>⛰ CLIMBSCORE</h1>
+    <p>Competition Scoring System</p>
+    <div class="role-tag">JUDGE PORTAL</div>
+  </div>
+  <div class="judge-list">
+    <div class="judge-list-label">Select your name to sign in</div>
+    <div id="judge-list-container"></div>
+  </div>
+</div>
+
+<!-- ══ SETUP ══ -->
+<div class="screen" id="screen-setup">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('login')">← BACK</button>
+    <div class="logo">SETUP</div>
+    <div class="judge-chip" id="setup-judge-chip"></div>
+  </div>
+  <div class="setup-body">
+    <div id="current-assignment-bar" style="display:none;" class="current-assignment-bar"></div>
+    <div>
+      <div class="setup-section-label">Select Age Category</div>
+      <div class="category-grid" id="category-grid"></div>
+    </div>
+    <div>
+      <div class="setup-section-label">Select Climb</div>
+      <div class="climb-grid" id="setup-climb-grid"></div>
+    </div>
+    <button class="setup-confirm-btn" id="setup-confirm-btn" onclick="confirmSetup()" disabled>START JUDGING</button>
+    <button class="btn-cancel" onclick="showScreen('login')">Cancel</button>
+  </div>
+</div>
+
+<!-- ══ JUDGE HOME ══ -->
+<div class="screen" id="screen-judge-home">
+  <div class="app-header">
+    <div class="logo">JUDGE</div>
+    <div class="judge-chip" id="home-judge-chip"></div>
+  </div>
+  <div class="judge-home-header">
+    <div class="judge-assignment-card">
+      <div class="assignment-detail">
+        <div class="assignment-label">ASSIGNED TO</div>
+        <div class="assignment-value" id="home-assignment-value"></div>
+      </div>
+      <button class="btn-secondary" style="width:auto;padding:10px 14px;font-size:15px;" onclick="showScreen('setup')">CHANGE</button>
+    </div>
+  </div>
+  <div class="judge-home-actions">
+    <div class="action-card" onclick="showScreen('judge-scan')">
+      <div class="action-icon">📷</div>
+      <div class="action-text-block">
+        <div class="action-title">SCAN TO QUEUE</div>
+        <div class="action-sub">Add a competitor to your climb queue</div>
+      </div>
+    </div>
+    <div class="action-card" onclick="showScreen('judge-queue')">
+      <div class="action-icon">🕐</div>
+      <div class="action-text-block">
+        <div class="action-title">VIEW QUEUE</div>
+        <div class="action-sub" id="home-queue-sub">See who's waiting to climb</div>
+      </div>
+      <div class="action-badge" id="home-queue-badge">0</div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <button class="nav-btn" onclick="showScreen('judge-scan')"><span class="nav-icon">📷</span>SCAN</button>
+    <button class="nav-btn active"><span class="nav-icon">🏠</span>HOME</button>
+    <button class="nav-btn" onclick="showScreen('judge-queue')">
+      <span class="nav-icon">🕐</span>QUEUE
+      <span class="nav-badge" id="nav-queue-badge" style="display:none"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ══ SCAN ══ -->
+<div class="screen" id="screen-judge-scan">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('judge-home')">← HOME</button>
+    <div class="logo">SCAN TO QUEUE</div>
+    <div class="judge-chip" id="scan-judge-chip"></div>
+  </div>
+  <div class="scan-area">
+    <div class="camera-wrap" id="judge-camera-wrap">
+      <video id="judge-qr-video" playsinline autoplay muted></video>
+      <canvas id="judge-qr-canvas"></canvas>
+      <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+      <div class="scan-line"></div>
+    </div>
+    <div class="camera-status" id="judge-camera-status">Starting camera…</div>
+    <div class="camera-error" id="judge-camera-error">
+      Camera unavailable. Use the list below or check browser permissions.
+    </div>
+  </div>
+  <div class="scan-demo-section">
+    <div class="scan-demo-label">— Demo: tap a competitor —</div>
+    <div id="scan-demo-list"></div>
+  </div>
+</div>
+
+<!-- ══ CONFIRM ADD TO QUEUE ══ -->
+<div class="screen" id="screen-judge-confirm">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('judge-scan')">← RESCAN</button>
+    <div class="logo">ADD TO QUEUE</div>
+  </div>
+  <div class="confirm-body">
+    <div class="competitor-card">
+      <div class="reg-number" id="jc-reg"></div>
+      <div class="comp-name" id="jc-name"></div>
+      <div class="comp-cat" id="jc-cat"></div>
+    </div>
+    <div class="queue-target-card">
+      <div class="queue-target-label">ADDING TO QUEUE FOR</div>
+      <div class="queue-target-value" id="jc-queue-target"></div>
+      <div class="queue-target-pos" id="jc-queue-pos"></div>
+    </div>
+    <div class="already-queued-warning" id="jc-warning" style="display:none;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:auto;">
+      <button class="btn-success" onclick="confirmAddToQueue()">✓ ADD TO QUEUE</button>
+      <button class="btn-cancel" onclick="showScreen('judge-scan')">✗ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WRONG CATEGORY ERROR ══ -->
+<div class="screen" id="screen-judge-wrong-cat">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('judge-scan')">← RESCAN</button>
+    <div class="logo" style="color:var(--danger);">WRONG CATEGORY</div>
+  </div>
+  <div class="wrong-cat-body">
+    <div class="wrong-cat-icon">⛔</div>
+    <div class="wrong-cat-title">WRONG CATEGORY</div>
+    <div class="wrong-cat-message">This competitor is not in your assigned category. You cannot add them to your queue.</div>
+    <div class="wrong-cat-comp-card">
+      <div class="comp-reg" id="wc-reg"></div>
+      <div class="comp-name" id="wc-name"></div>
+      <div style="margin-top:10px;" id="wc-comp-cat-badge"></div>
+    </div>
+    <div class="wrong-cat-cats">
+      <div class="wrong-cat-row">
+        <span class="wrong-cat-row-label">Competitor's Category</span>
+        <span class="wrong-cat-row-value danger" id="wc-comp-cat"></span>
+      </div>
+      <div class="wrong-cat-row">
+        <span class="wrong-cat-row-label">Your Assigned Category</span>
+        <span class="wrong-cat-row-value good" id="wc-judge-cat"></span>
+      </div>
+    </div>
+    <div class="wrong-cat-actions">
+      <button class="btn-primary" onclick="showScreen('judge-scan')" style="background:var(--accent);color:#000;">← SCAN AGAIN</button>
+      <button class="btn-cancel" onclick="showScreen('judge-home')">Back to Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ QUEUE ══ -->
+<div class="screen" id="screen-judge-queue">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('judge-home')">← HOME</button>
+    <div class="logo" id="queue-screen-title">QUEUE</div>
+    <div class="judge-chip" id="queue-judge-chip"></div>
+  </div>
+  <div class="queue-body" id="judge-queue-body"></div>
+  <div class="bottom-nav">
+    <button class="nav-btn" onclick="showScreen('judge-scan')"><span class="nav-icon">📷</span>SCAN</button>
+    <button class="nav-btn" onclick="showScreen('judge-home')"><span class="nav-icon">🏠</span>HOME</button>
+    <button class="nav-btn active"><span class="nav-icon">🕐</span>QUEUE</button>
+  </div>
+</div>
+
+<!-- ══ SCORING ══ -->
+<div class="screen" id="screen-judge-scoring">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('judge-queue')">← QUEUE</button>
+    <div class="logo">SCORING</div>
+    <div class="judge-chip" id="scoring-judge-chip"></div>
+  </div>
+  <div class="scoring-header-info">
+    <div>
+      <div class="scoring-competitor-name" id="scoring-comp-name"></div>
+      <div style="font-size:12px;color:var(--text-muted);" id="scoring-comp-cat"></div>
+    </div>
+    <div class="scoring-total">
+      <div class="total-label">TOTAL</div>
+      <div class="total-value" id="scoring-total-val">0</div>
+    </div>
+  </div>
+  <div class="climbs-list" id="scoring-climbs-list"></div>
+  <div class="done-scoring-bar">
+    <button class="done-scoring-btn" onclick="doneScoring()">✓ DONE — REMOVE FROM QUEUE</button>
+  </div>
+</div>
+
+<script>
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIG — paste your Apps Script web app URL here
+// ═══════════════════════════════════════════════════════════════
+const API_URL = 'YOUR_APPS_SCRIPT_URL_HERE'; // e.g. https://script.google.com/macros/s/ABC.../exec
+
+// ═══════════════════════════════════════════════════════════════
+// API CLIENT — fetch() based, works from GitHub Pages
+// ═══════════════════════════════════════════════════════════════
+let CLIMB_ALLOWED_SCORES=[],TOP_SCORE=60,MAX_ATTEMPTS=5,TOP_BONUS=[4,3,2,1,0],NUM_CLIMBS=8;
+let JUDGES=[],COMPETITORS=[];
+const CATEGORIES=['U13 Female','U13 Male','U15 Female','U15 Male','U17 Female','U17 Male','U21 Female','U21 Male'];
+const CAT_KEY={'U13':'cat-u13','U15':'cat-u15','U17':'cat-u17','U21':'cat-u21'};
+let allScores={},queues={};
+const POLL_INTERVAL_MS=8000;
+let pollTimer=null;
+
+async function apiFetch(params){
+  const url=new URL(API_URL);
+  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):v));
+  const r=await fetch(url.toString(),{redirect:'follow'});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+async function apiPost(body){
+  const r=await fetch(API_URL,{method:'POST',body:JSON.stringify(body),redirect:'follow'});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+async function initApp(onReady){
+  try{
+    const cfg=await apiFetch({action:'getConfig'});
+    if(!cfg.success){showFatalError(cfg.error||'Config load failed');return;}
+    CLIMB_ALLOWED_SCORES=cfg.climbScores;TOP_SCORE=cfg.topScore;MAX_ATTEMPTS=cfg.maxAttempts;
+    TOP_BONUS=cfg.topBonus;NUM_CLIMBS=cfg.numClimbs;
+    if(cfg.judges) JUDGES=cfg.judges;
+    COMPETITORS=cfg.competitors;
+    COMPETITORS.forEach(c=>{allScores[c.reg]={};for(let i=0;i<NUM_CLIMBS;i++)allScores[c.reg][i]=[];});
+    for(let i=0;i<NUM_CLIMBS;i++)queues[i]=[];
+    await refreshAll();
+    onReady();
+    startPolling();
+  }catch(e){showFatalError('Could not connect to server. Check API_URL is set correctly.');}
+}
+
+async function refreshAll(cb){
+  try{
+    const [sr,qr]=await Promise.all([
+      apiFetch({action:'getAllScores'}),
+      apiFetch({action:'getQueues'})
+    ]);
+    if(sr.success) mergeScores(sr.scores);
+    if(qr.success) mergeQueues(qr.queues);
+  }catch(e){console.warn('Refresh failed',e);}
+  if(cb) cb();
+}
+
+function mergeScores(s){for(const reg in s){if(!allScores[reg])allScores[reg]={};for(let i=0;i<NUM_CLIMBS;i++)allScores[reg][i]=s[reg][i]||[];}}
+function mergeQueues(q){for(let i=0;i<NUM_CLIMBS;i++)queues[i]=q[i]||[];}
+function startPolling(){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=setInterval(async()=>{
+    await refreshAll();
+    if(typeof onPollRefresh==='function')onPollRefresh();
+  },POLL_INTERVAL_MS);
+}
+
+async function apiSubmitScore(judgeId,compReg,climbIdx,attemptIdx,score,positiveMovement,isTop,onDone){
+  const attempts=allScores[compReg][climbIdx];
+  const attempt={score,positiveMovement,isTop};
+  if(attemptIdx<attempts.length)attempts[attemptIdx]=attempt;else attempts.push(attempt);
+  try{
+    const r=await apiPost({action:'submitScore',judgeId,compReg,climbIdx,attemptIdx,score,positiveMovement,isTop});
+    if(!r.success) showToast('Sync error','warn');
+    if(onDone) onDone(r);
+  }catch(e){showToast('Connection error','warn');if(onDone)onDone({success:false});}
+}
+
+async function apiDeleteAttempt(compReg,climbIdx,attemptIdx,onDone){
+  allScores[compReg][climbIdx].splice(attemptIdx,1);
+  try{
+    const r=await apiPost({action:'deleteAttempt',compReg,climbIdx,attemptIdx});
+    if(!r.success) showToast('Sync error','warn');
+    if(onDone) onDone(r);
+  }catch(e){showToast('Connection error','warn');if(onDone)onDone({success:false});}
+}
+
+async function apiJoinQueue(compReg,climbIdx,onDone){
+  for(let i=0;i<NUM_CLIMBS;i++)queues[i]=queues[i].filter(e=>e.reg!==compReg);
+  queues[climbIdx].push({reg:compReg,joinedAt:Date.now()});
+  try{
+    const r=await apiPost({action:'joinQueue',compReg,climbIdx});
+    if(onDone) onDone(r);
+  }catch(e){showToast('Connection error','warn');if(onDone)onDone({success:false});}
+}
+
+async function apiLeaveQueue(compReg,climbIdx,status,onDone){
+  queues[climbIdx]=queues[climbIdx].filter(e=>e.reg!==compReg);
+  try{
+    const r=await apiPost({action:'leaveQueue',compReg,climbIdx,status});
+    if(onDone) onDone(r);
+  }catch(e){showToast('Connection error','warn');if(onDone)onDone({success:false});}
+}
+
+// Shared helpers
+function attemptTotal(a,ai){if(a.isTop)return TOP_SCORE+(TOP_BONUS[ai]||0);return a.score+(a.positiveMovement?1:0);}
+function climbBest(reg,ci){const arr=allScores[reg]&&allScores[reg][ci]?allScores[reg][ci]:[];if(!arr.length)return null;let best={idx:0,total:attemptTotal(arr[0],0)};for(let i=1;i<arr.length;i++){const t=attemptTotal(arr[i],i);if(t>best.total)best={idx:i,total:t};}return best;}
+function climbTopped(reg,ci){return(allScores[reg]&&allScores[reg][ci]||[]).some(a=>a.isTop);}
+function totalScore(reg){let t=0;for(let i=0;i<NUM_CLIMBS;i++){const b=climbBest(reg,i);if(b)t+=b.total;}return t;}
+function findComp(reg){return COMPETITORS.find(c=>c.reg===reg);}
+function compCurrentClimb(reg){for(let ci=0;ci<NUM_CLIMBS;ci++){if(queues[ci]&&queues[ci].find(e=>e.reg===reg))return ci;}return null;}
+function catClass(cat){for(let k in CAT_KEY){if(cat.includes(k))return CAT_KEY[k];}return 'cat-u21';}
+function fmtWait(t){const m=Math.floor((Date.now()-t)/60000);if(m<1)return 'just now';return m+(m===1?' min':' mins');}
+function initials(name){return name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();}
+
+function showFatalError(msg){document.body.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;background:#0d1b2a;color:#f0f4f8;text-align:center;gap:16px;"><div style="font-size:48px">⚠️</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:#e74c3c;">CONNECTION ERROR</div><div style="font-size:14px;color:#7a9ab5;max-width:320px;">${msg}</div><button onclick="location.reload()" style="background:#00b4d8;color:#000;border:none;padding:14px 28px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;cursor:pointer;margin-top:8px;">RETRY</button></div>`;}
+function showLoadingScreen(){document.body.insertAdjacentHTML('afterbegin',`<div id="loading-overlay" style="position:fixed;inset:0;background:#0d1b2a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9999;"><div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;color:#00b4d8;letter-spacing:2px;">⛰ CLIMBSCORE</div><div style="color:#7a9ab5;font-size:13px;letter-spacing:2px;text-transform:uppercase;">Loading competition data...</div><div style="width:200px;height:4px;background:#1a2e42;border-radius:2px;margin-top:8px;overflow:hidden;"><div style="height:100%;background:#00b4d8;border-radius:2px;animation:csload 1.5s ease infinite;"></div></div></div><style>@keyframes csload{0%{width:0%}50%{width:70%}100%{width:100%}}</style>`);}
+function hideLoadingScreen(){const el=document.getElementById('loading-overlay');if(el)el.remove();}
+
+// ── STATE ──
+let currentJudge=null;
+let selectedCategory=null;
+let selectedClimbIdx=null;
+let currentScoringComp=null;
+let activeClimbExpanded=null;
+let editState={};
+
+// ── SCREENS ──
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  // Stop camera whenever we leave the scan screen
+  if(name!=='judge-scan') stopCamera();
+  if(name==='login')renderJudgeList();
+  if(name==='setup')renderSetup();
+  if(name==='judge-home')renderJudgeHome();
+  if(name==='judge-scan'){renderScanList();startCamera();}
+  if(name==='judge-queue')renderJudgeQueue();
+  if(name==='judge-scoring')renderJudgeScoring();
+}
+
+// ── LOGIN ──
+function renderJudgeList(){
+  document.getElementById('judge-list-container').innerHTML=JUDGES.map(j=>`
+    <button class="judge-btn" onclick="selectJudge('${j.id}')">
+      <div class="judge-avatar">${initials(j.name)}</div>
+      <div><div class="judge-btn-name">${j.name}</div><div class="judge-btn-id">${j.id}</div></div>
+    </button>`).join('');
+}
+function selectJudge(id){
+  currentJudge=JUDGES.find(j=>j.id===id);
+  selectedCategory=null;selectedClimbIdx=null;
+  showScreen('setup');
+}
+
+// ── SETUP ──
+function renderSetup(){
+  document.getElementById('setup-judge-chip').textContent=currentJudge.name;
+  const bar=document.getElementById('current-assignment-bar');
+  const assign=getMyAssignment();
+  if(assign){bar.textContent=`Current: ${assign.category} · Climb ${assign.climbIdx+1}`;bar.style.display='';}
+  else bar.style.display='none';
+
+  document.getElementById('category-grid').innerHTML=CATEGORIES.map(cat=>`
+    <button class="cat-select-btn ${selectedCategory===cat?'selected':''}" onclick="selectCat('${cat}')">${cat}</button>`).join('');
+
+  document.getElementById('setup-climb-grid').innerHTML=Array.from({length:NUM_CLIMBS},(_,ci)=>`
+    <button class="climb-select-btn ${selectedClimbIdx===ci?'selected':''}" onclick="selectClimb(${ci})">
+      C${ci+1}<span class="q-count">${queues[ci].length}q</span>
+    </button>`).join('');
+
+  document.getElementById('setup-confirm-btn').disabled=!(selectedCategory&&selectedClimbIdx!==null);
+}
+function selectCat(cat){selectedCategory=cat;renderSetup();}
+function selectClimb(ci){selectedClimbIdx=ci;renderSetup();}
+function getMyAssignment(){
+  // In production this reads from judgeAssignments shared state
+  return currentJudge._assignment||null;
+}
+function confirmSetup(){
+  currentJudge._assignment={category:selectedCategory,climbIdx:selectedClimbIdx};
+  showToast(`Assigned: ${selectedCategory} · Climb ${selectedClimbIdx+1}`,'info');
+  showScreen('judge-home');
+}
+
+// ── JUDGE HOME ──
+function renderJudgeHome(){
+  const a=getMyAssignment();
+  document.getElementById('home-judge-chip').textContent=currentJudge.name;
+  document.getElementById('home-assignment-value').textContent=a?`${a.category} · Climb ${a.climbIdx+1}`:'Not assigned';
+  const qLen=a?queues[a.climbIdx].length:0;
+  document.getElementById('home-queue-badge').textContent=qLen;
+  document.getElementById('home-queue-badge').className='action-badge'+(qLen===0?' empty':'');
+  document.getElementById('home-queue-sub').textContent=qLen===0?'No one queuing yet':`${qLen} competitor${qLen!==1?'s':''} waiting`;
+  const nb=document.getElementById('nav-queue-badge');
+  nb.textContent=qLen;nb.style.display=qLen>0?'':'none';
+}
+
+// ── CAMERA SCANNING ──────────────────────────────────────────────
+let cameraStream = null;
+let cameraAnimFrame = null;
+
+function startCamera() {
+  const video   = document.getElementById('judge-qr-video');
+  const canvas  = document.getElementById('judge-qr-canvas');
+  const status  = document.getElementById('judge-camera-status');
+  const errBox  = document.getElementById('judge-camera-error');
+  const ctx     = canvas.getContext('2d');
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status.style.display = 'none';
+    errBox.style.display = '';
+    return;
+  }
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    .then(stream => {
+      cameraStream = stream;
+      video.srcObject = stream;
+      video.play();
+      status.textContent = 'Point at competitor QR code';
+      errBox.style.display = 'none';
+      requestAnimationFrame(function scanFrame() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width  = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+          if (code && code.data) {
+            stopCamera();
+            // Extract reg from full URL (?reg=A001) or treat raw value as reg
+            const match = code.data.match(/[?&]reg=([A-Z0-9]+)/i);
+            const reg   = match ? match[1].toUpperCase() : code.data.trim().toUpperCase();
+            if (findComp(reg)) {
+              scanComp(reg);
+            } else {
+              status.style.display = '';
+              status.textContent   = `Unknown QR: ${reg}`;
+              errBox.style.display = '';
+              errBox.textContent   = `No competitor found for code "${reg}". Try the list below.`;
+              startCamera(); // restart
+            }
+            return;
+          }
+        }
+        cameraAnimFrame = requestAnimationFrame(scanFrame);
+      });
+    })
+    .catch(err => {
+      status.style.display = 'none';
+      errBox.style.display = '';
+      errBox.textContent   = 'Camera access denied. Use the list below to add competitors.';
+    });
+}
+
+function stopCamera() {
+  if (cameraAnimFrame) { cancelAnimationFrame(cameraAnimFrame); cameraAnimFrame = null; }
+  if (cameraStream)    { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+}
+
+// ── SCAN SCREEN ──────────────────────────────────────────────────
+function renderScanList(){
+  const a=getMyAssignment();
+  document.getElementById('scan-judge-chip').textContent=currentJudge.name;
+  document.getElementById('scan-demo-list').innerHTML=COMPETITORS.map(c=>{
+    const inClimb=compCurrentClimb(c.reg);
+    const alreadyHere=a&&inClimb===a.climbIdx;
+    const elsewhere=inClimb!==null&&!alreadyHere;
+    let chip='';
+    if(alreadyHere)chip=`<span class="already-here-chip">✓ In your queue</span>`;
+    else if(elsewhere)chip=`<span class="in-queue-chip">In C${inClimb+1} queue</span>`;
+    return `<button class="demo-comp-btn" onclick="scanComp('${c.reg}')">
+      <div><div style="font-weight:600">${c.name}</div><div style="color:var(--text-muted);font-size:12px">${c.reg}</div></div>
+      <div style="display:flex;align-items:center;gap:6px;">${chip}<span class="cat-badge ${catClass(c.category)}">${c.category}</span></div>
+    </button>`;
+  }).join('');
+}
+
+function scanComp(reg){
+  const comp=findComp(reg);
+  const a=getMyAssignment();
+  currentScoringComp=comp;
+
+  // ── Category check — block if competitor not in judge's assigned category ──
+  if(a && comp.category !== a.category){
+    document.getElementById('wc-reg').textContent=comp.reg;
+    document.getElementById('wc-name').textContent=comp.name;
+    document.getElementById('wc-comp-cat').textContent=comp.category;
+    document.getElementById('wc-judge-cat').textContent=a.category;
+    const badgeEl=document.getElementById('wc-comp-cat-badge');
+    badgeEl.innerHTML=`<span class="cat-badge ${catClass(comp.category)}">${comp.category}</span>`;
+    showScreen('judge-wrong-cat');
+    return;
+  }
+
+  document.getElementById('jc-reg').textContent=comp.reg;
+  document.getElementById('jc-name').textContent=comp.name;
+  const catEl=document.getElementById('jc-cat');
+  catEl.textContent=comp.category;catEl.className='comp-cat '+catClass(comp.category);
+  document.getElementById('jc-queue-target').textContent=a?`${a.category} · Climb ${a.climbIdx+1}`:'No assignment';
+  const pos=a?queues[a.climbIdx].length+1:'-';
+  document.getElementById('jc-queue-pos').textContent=a?`Will be #${pos} in queue`:'';
+  const inClimb=compCurrentClimb(reg);
+  const warn=document.getElementById('jc-warning');
+  if(inClimb!==null&&!(a&&inClimb===a.climbIdx)){
+    warn.textContent=`⚠ Already in Climb ${inClimb+1} queue — will be moved here.`;warn.style.display='';
+  } else if(a&&inClimb===a.climbIdx){
+    warn.textContent=`Already in your queue!`;warn.style.display='';warn.style.background='rgba(46,204,113,0.1)';warn.style.borderColor='var(--success)';warn.style.color='var(--success)';
+  } else {
+    warn.style.display='none';
+  }
+  showScreen('judge-confirm');
+}
+
+function confirmAddToQueue(){
+  const a=getMyAssignment();if(!a)return;
+  const reg=currentScoringComp.reg;
+  apiJoinQueue(reg, a.climbIdx, ()=>{
+    showToast(`${currentScoringComp.name} added to Climb ${a.climbIdx+1} queue`,'info');
+  });
+  showScreen('judge-queue');
+}
+
+// ── QUEUE ──
+function renderJudgeQueue(){
+  const a=getMyAssignment();
+  if(!a){document.getElementById('judge-queue-body').innerHTML=`<div class="queue-empty"><div class="queue-empty-icon">⚠️</div><div class="queue-empty-text">NO CLIMB ASSIGNED</div><button class="btn-primary" style="margin-top:16px" onclick="showScreen('setup')">SET UP NOW</button></div>`;return;}
+  document.getElementById('queue-screen-title').textContent=`CLIMB ${a.climbIdx+1} QUEUE`;
+  document.getElementById('queue-judge-chip').textContent=currentJudge.name;
+  const q=queues[a.climbIdx];
+  const body=document.getElementById('judge-queue-body');
+  if(q.length===0){
+    body.innerHTML=`<div class="queue-empty"><div class="queue-empty-icon">🕐</div><div class="queue-empty-text">QUEUE EMPTY</div><div style="color:var(--text-muted);font-size:13px;">Scan a competitor to add them</div><button class="btn-primary" style="margin-top:16px;max-width:260px" onclick="showScreen('judge-scan')">📷 SCAN COMPETITOR</button></div>`;
+    return;
+  }
+  body.innerHTML=q.map((entry,idx)=>{
+    const comp=findComp(entry.reg);const isNext=idx===0;
+    return `<div class="queue-entry ${isNext?'is-next':''}">
+      ${isNext?'<div class="next-banner">▶ NEXT UP — CALL THIS COMPETITOR</div>':''}
+      <div class="queue-entry-header">
+        <div class="queue-pos">${idx+1}</div>
+        <div class="queue-comp-info">
+          <div class="queue-comp-name">${comp.name}</div>
+          <div class="queue-comp-meta">
+            <span class="queue-reg">${comp.reg}</span>
+            <span class="cat-badge ${catClass(comp.category)}" style="font-size:11px;padding:2px 6px">${comp.category}</span>
+            <span class="queue-wait">⏱ ${fmtWait(entry.joinedAt)}</span>
+          </div>
+        </div>
+        <button class="queue-remove-btn" onclick="removeFromQ('${entry.reg}')">✕</button>
+      </div>
+      ${isNext?`<div class="queue-entry-actions">
+        <button class="queue-score-btn" onclick="openScoring('${entry.reg}')">🧗 OPEN SCORING</button>
+        <button class="queue-done-btn" onclick="markDone('${entry.reg}')">✓ DONE</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function removeFromQ(reg){const a=getMyAssignment();if(!a)return;apiLeaveQueue(reg,a.climbIdx,'removed');showToast(findComp(reg).name+' removed','warn');renderJudgeQueue();}
+function markDone(reg){const a=getMyAssignment();if(!a)return;apiLeaveQueue(reg,a.climbIdx,'done');showToast(findComp(reg).name+' marked done ✓');renderJudgeQueue();}
+function openScoring(reg){
+  currentScoringComp=findComp(reg);
+  const a=getMyAssignment();
+  activeClimbExpanded=a?a.climbIdx:null;
+  showScreen('judge-scoring');
+}
+
+// ── SCORING ──
+function renderJudgeScoring(){
+  if(!currentScoringComp)return;
+  const comp=currentScoringComp;
+  document.getElementById('scoring-judge-chip').textContent=currentJudge.name;
+  document.getElementById('scoring-comp-name').textContent=comp.name+' · '+comp.reg;
+  document.getElementById('scoring-comp-cat').textContent=comp.category;
+  document.getElementById('scoring-total-val').textContent=totalScore(comp.reg);
+  const list=document.getElementById('scoring-climbs-list');
+  list.innerHTML='';
+  for(let ci=0;ci<NUM_CLIMBS;ci++){
+    const attempts=allScores[comp.reg][ci];
+    const best=climbBest(comp.reg,ci);
+    const topped=climbTopped(comp.reg,ci);
+    const isActive=activeClimbExpanded===ci;
+    const card=document.createElement('div');
+    let cc='climb-card';
+    if(isActive)cc+=' is-active';else if(topped)cc+=' is-topped';else if(best)cc+=' has-score';
+    card.className=cc;
+    const pips=Array.from({length:MAX_ATTEMPTS},(_,pi)=>{
+      if(pi>=attempts.length)return '<div class="pip"></div>';
+      if(attempts[pi].isTop)return '<div class="pip top"></div>';
+      return`<div class="pip ${best&&best.idx===pi?'best':'used'}"></div>`;
+    }).join('');
+    let bd='—',bc='';if(best){bd=best.total;bc=topped?'topped':'';}
+    card.innerHTML=`
+      <div class="climb-header" onclick="toggleClimb(${ci})">
+        <div class="climb-title">CLIMB ${ci+1}${topped?'<span class="topped-star"> ★</span>':''}</div>
+        <div class="climb-right">
+          <div class="best-score-badge ${bc}">${bd}</div>
+          <div class="attempts-pips">${pips}</div>
+          <div style="font-size:18px;color:var(--text-muted)">${isActive?'▲':'▼'}</div>
+        </div>
+      </div>
+      <div class="climb-expand">
+        ${renderAttemptsTable(comp.reg,ci,attempts,best)}
+        ${renderScoreInput(comp.reg,ci,attempts,topped)}
+      </div>`;
+    list.appendChild(card);
+  }
+}
+
+function renderAttemptsTable(reg,ci,attempts,best){
+  if(!attempts.length)return`<div style="color:var(--text-muted);font-size:13px;padding:8px 0 14px">No attempts yet</div>`;
+  const rows=attempts.map((a,ai)=>{
+    const total=attemptTotal(a,ai);const isBest=best&&best.idx===ai;
+    const rc=a.isTop?'is-topped-row':(isBest?'is-best':'');
+    const tc=a.isTop?'is-top-val':(isBest?'is-best-val':'');
+    const bonus=a.isTop?TOP_BONUS[ai]:0;
+    const sc=a.isTop?`<div>${a.score}<span class="top-label">★ TOP</span></div>`:`<div>${a.score}</div>`;
+    let bc='';
+    if(a.isTop&&bonus>0)bc=`<span class="bonus-chip top-bonus">+${bonus} bonus</span>`;
+    else if(a.positiveMovement)bc=`<span class="bonus-chip pm-bonus">+1 PM</span>`;
+    const pm=a.isTop?`<button class="pm-toggle" disabled>+PM</button>`:`<button class="pm-toggle ${a.positiveMovement?'active':''}" onclick="togglePM('${reg}',${ci},${ai})">${a.positiveMovement?'✓PM':'+PM'}</button>`;
+    return`<tr class="attempt-row ${rc}"><td class="attempt-num-cell">A${ai+1}</td><td class="attempt-score-cell">${sc}</td><td class="attempt-pm-cell">${pm}</td><td class="attempt-total-cell ${tc}">${total}${bc}</td><td class="attempt-actions-cell"><button class="edit-attempt-btn" onclick="openEdit('${reg}',${ci},${ai})">✎</button><button class="del-attempt-btn" onclick="delAttempt('${reg}',${ci},${ai})">✕</button></td></tr>`;
+  }).join('');
+  return`<div class="attempts-section-label">ATTEMPTS (${attempts.length}/${MAX_ATTEMPTS})</div><table class="attempts-table"><thead><tr><th></th><th>SCORE</th><th>+PM</th><th style="text-align:right">TOTAL</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderScoreInput(reg,ci,attempts,topped){
+  if(topped)return`<div class="topped-msg">★ TOPPED — CLIMB COMPLETE</div>`;
+  if(attempts.length>=MAX_ATTEMPTS)return`<div class="max-attempts-msg">⚠ Max attempts reached</div>`;
+  const btns=CLIMB_ALLOWED_SCORES[ci].filter(s=>s!==TOP_SCORE).map(s=>`<button class="score-btn" onclick="addScore('${reg}',${ci},${s})">${s}</button>`).join('');
+  const bonus=TOP_BONUS[attempts.length];
+  return`<div class="score-input-section"><div class="score-input-label">ATTEMPT ${attempts.length+1} OF ${MAX_ATTEMPTS}</div><div class="score-buttons">${btns}</div><button class="top-btn" onclick="addTop('${reg}',${ci})">★ TOP — 60 + ${bonus} BONUS = ${TOP_SCORE+bonus}</button></div>`;
+}
+
+function toggleClimb(ci){activeClimbExpanded=activeClimbExpanded===ci?null:ci;renderJudgeScoring();if(activeClimbExpanded!==null)setTimeout(()=>{document.querySelectorAll('.climb-card')[ci]?.scrollIntoView({behavior:'smooth',block:'nearest'});},60);}
+function addScore(reg,ci,score){if(allScores[reg][ci].length>=MAX_ATTEMPTS||climbTopped(reg,ci))return;const ai=allScores[reg][ci].length;apiSubmitScore(currentJudge.id,reg,ci,ai,score,false,false);showToast(`C${ci+1} A${ai+1}: ${score}`);renderJudgeScoring();}
+function addTop(reg,ci){if(allScores[reg][ci].length>=MAX_ATTEMPTS||climbTopped(reg,ci))return;const ai=allScores[reg][ci].length;const bonus=TOP_BONUS[ai];apiSubmitScore(currentJudge.id,reg,ci,ai,TOP_SCORE,false,true);showToast(`★ TOPPED! 60+${bonus}=${TOP_SCORE+bonus}`,'top');renderJudgeScoring();}
+function togglePM(reg,ci,ai){const a=allScores[reg][ci][ai];if(a.isTop)return;const newPM=!a.positiveMovement;apiSubmitScore(currentJudge.id,reg,ci,ai,a.score,newPM,false);showToast(newPM?'+PM added':'PM removed');renderJudgeScoring();}
+function delAttempt(reg,ci,ai){apiDeleteAttempt(reg,ci,ai);showToast('Attempt deleted','warn');renderJudgeScoring();}
+function doneScoring(){const a=getMyAssignment();if(a){apiLeaveQueue(currentScoringComp.reg,a.climbIdx,'done');showToast(currentScoringComp.name+' removed from queue ✓');}showScreen('judge-queue');}
+
+// ── EDIT MODAL ──
+function openEdit(reg,ci,ai){
+  const a=allScores[reg][ci][ai];
+  editState={reg,ci,ai,score:a.score,pm:a.positiveMovement,isTop:a.isTop};
+  document.getElementById('modal-title').textContent=`Edit Climb ${ci+1} · Attempt ${ai+1}`;
+  document.getElementById('modal-subtitle').textContent=findComp(reg).name;
+  refreshModal();document.getElementById('edit-modal').classList.add('open');
+}
+function refreshModal(){
+  const allowed=CLIMB_ALLOWED_SCORES[editState.ci].filter(s=>s!==TOP_SCORE);
+  document.getElementById('modal-score-btns').innerHTML=allowed.map(s=>`<button class="modal-score-btn ${!editState.isTop&&editState.score===s?'selected':''}" onclick="selModalScore(${s})">${s}</button>`).join('');
+  const bonus=TOP_BONUS[editState.ai]||0;
+  const tb=document.getElementById('modal-top-btn');tb.textContent=`★ TOP — 60 + ${bonus} bonus = ${TOP_SCORE+bonus}`;tb.className='modal-top-btn'+(editState.isTop?' selected':'');
+  const pm=document.getElementById('modal-pm-toggle');pm.className='modal-pm-toggle'+(editState.pm?' active':'');pm.textContent=editState.pm?'✓ PM':'+PM';pm.disabled=editState.isTop;
+  const total=editState.isTop?TOP_SCORE+bonus:editState.score+(editState.pm?1:0);
+  document.getElementById('modal-total-preview').innerHTML=`<span>${total}</span>`;
+}
+function selModalScore(s){editState.score=s;editState.isTop=false;refreshModal();}
+function selectModalTop(){editState.score=TOP_SCORE;editState.isTop=true;editState.pm=false;refreshModal();}
+function toggleModalPM(){if(!editState.isTop){editState.pm=!editState.pm;refreshModal();}}
+function saveEdit(){apiSubmitScore(currentJudge.id,editState.reg,editState.ci,editState.ai,editState.score,editState.isTop?false:editState.pm,editState.isTop);closeModal();showToast('Updated ✓');renderJudgeScoring();}
+function closeModal(){document.getElementById('edit-modal').classList.remove('open');}
+
+// ── TOAST ──
+let toastT;
+function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(type?' '+type:'');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400);}
+
+// ── POLL REFRESH ──
+function onPollRefresh(){
+  const active=document.querySelector('.screen.active');if(!active)return;
+  const id=active.id;
+  if(id==='screen-judge-queue')renderJudgeQueue();
+  if(id==='screen-judge-scoring')renderJudgeScoring();
+  if(id==='screen-judge-home')renderJudgeHome();
+  if(id==='screen-judge-scan')renderScanList();
+}
+
+// ── INIT ──
+showLoadingScreen();
+initApp(()=>{
+  hideLoadingScreen();
+  renderJudgeList();
+});
+</script>
+</body>
+</html>
